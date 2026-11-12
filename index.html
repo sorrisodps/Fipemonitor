@@ -3,13 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Consulta FIPE</title>
-<meta name="description" content="Consulte o preço da Tabela FIPE de carros e motos por modelo ou por código FIPE, com os últimos 3 meses.">
+<title>Monitor FIPE</title>
+<meta name="description" content="Acompanhe a Tabela FIPE dos seus veículos e dos que você quer comprar. Busca por modelo ou código FIPE, carros e motos.">
+<script>try{var _t=localStorage.getItem("fipemonitor:tema");document.documentElement.setAttribute("data-theme",_t==="light"?"light":"dark");}catch(e){document.documentElement.setAttribute("data-theme","dark");}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: uma coluna central. Painel de busca com duas abas (modelo, código), cartão de resultado abaixo com preço, 3 meses e link para compartilhar. */
+/* Layout: cabeçalho com o mês da tabela, painel de busca recolhível, seção Meus veículos em cartões, seção de acompanhamento com tabela comparativa e gráfico. */
 :root {
   --bg: #F2F4F8;
   --surface: #FFFFFF;
@@ -19,10 +20,20 @@
   --accent: #2447D6;
   --on-accent: #FFFFFF;
   --accent-soft: #E6EBFB;
+  --good: #14804A;
+  --bad: #C3372E;
   --up: #B45309;
   --down: #0E7C72;
+  --warn-bg: #FFF3D6;
+  --warn-fg: #7A5200;
   --err-bg: #FDECEA;
   --err-fg: #9B2C22;
+  --s1: #2447D6;
+  --s2: #0E8F83;
+  --s3: #D4700C;
+  --s4: #B02E86;
+  --s5: #7C4DDB;
+  --s6: #8A6D00;
   --font-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
   --font-body: "Inter", "Segoe UI", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
@@ -32,14 +43,18 @@
   :root:not([data-theme="light"]) {
     --bg: #0D121A; --surface: #151C27; --fg: #E8ECF4; --muted: #9AA6BA; --line: #263143;
     --accent: #86A2FF; --on-accent: #0D121A; --accent-soft: #1C2742;
-    --up: #F2A04D; --down: #3FCFC0; --err-bg: #3A1A18; --err-fg: #FFB4AC;
+    --good: #4CC585; --bad: #FF7F77; --up: #F2A04D; --down: #3FCFC0;
+    --warn-bg: #3A2D0E; --warn-fg: #F2CD7C; --err-bg: #3A1A18; --err-fg: #FFB4AC;
+    --s1: #86A2FF; --s2: #3FCFC0; --s3: #F2A04D; --s4: #E27DC0; --s5: #B79CFF; --s6: #E5C24B;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0D121A; --surface: #151C27; --fg: #E8ECF4; --muted: #9AA6BA; --line: #263143;
   --accent: #86A2FF; --on-accent: #0D121A; --accent-soft: #1C2742;
-  --up: #F2A04D; --down: #3FCFC0; --err-bg: #3A1A18; --err-fg: #FFB4AC;
+  --good: #4CC585; --bad: #FF7F77; --up: #F2A04D; --down: #3FCFC0;
+  --warn-bg: #3A2D0E; --warn-fg: #F2CD7C; --err-bg: #3A1A18; --err-fg: #FFB4AC;
+  --s1: #86A2FF; --s2: #3FCFC0; --s3: #F2A04D; --s4: #E27DC0; --s5: #B79CFF; --s6: #E5C24B;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -52,18 +67,84 @@ body {
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
-.wrap { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
-h1, h2 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
-h1 { font-size: 34px; letter-spacing: -0.02em; line-height: 1.1; }
-.sub { color: var(--muted); margin: 8px 0 0; max-width: 60ch; }
+.wrap { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 36px; }
+h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
 .num { font-variant-numeric: tabular-nums; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
-.tabs { display: flex; gap: 4px; padding: 4px; background: var(--bg); border-radius: 9px; }
-.tab { flex: 1; font: inherit; font-weight: 600; font-size: 14px; padding: 9px 10px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
-.tab[aria-selected="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+header { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: flex-end; justify-content: space-between; }
+h1 { font-size: 34px; letter-spacing: -0.02em; line-height: 1.1; }
+.sub { color: var(--muted); margin: 6px 0 0; }
+.status { display: flex; flex-direction: column; gap: 2px; align-items: flex-end; font-size: 13px; color: var(--muted); text-align: right; }
+.status strong { color: var(--fg); font-weight: 600; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: 12px; letter-spacing: 0.02em; }
+.chip i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 
+.banner { padding: 12px 16px; border-radius: 8px; background: var(--warn-bg); color: var(--warn-fg); font-size: 14px; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: space-between; }
+.banner.erro { background: var(--err-bg); color: var(--err-fg); }
+.banner .b-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.state { padding: 24px 16px; border: 1px dashed var(--line); border-radius: 10px; color: var(--muted); text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.state p { margin: 0; max-width: 56ch; }
+
+section { display: flex; flex-direction: column; gap: 14px; }
+.sec-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+h2 { font-size: 20px; letter-spacing: -0.01em; }
+.sec-note { color: var(--muted); font-size: 13px; margin: 0; }
+
+button { font: inherit; cursor: pointer; }
+button:disabled { opacity: .55; cursor: not-allowed; }
+.btn { font-weight: 600; font-size: 14px; padding: 9px 16px; border-radius: 8px; border: 0; background: var(--accent); color: var(--on-accent); white-space: nowrap; }
+.btn.ghost { background: transparent; color: var(--fg); border: 1px solid var(--line); font-weight: 500; }
+.btn.small { padding: 6px 12px; font-size: 13px; }
+.del { font-size: 12px; padding: 4px 9px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--muted); }
+.del:hover { color: var(--bad); border-color: var(--bad); }
+
+#lista-quero, #lista-meus { display: flex; flex-direction: column; gap: 14px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.card h3 { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.card-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.code { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.price { font-family: var(--font-display); font-size: 32px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; }
+.delta { font-size: 13px; font-weight: 500; color: var(--muted); }
+.delta.good { color: var(--good); }
+.delta.bad { color: var(--bad); }
+.delta.up { color: var(--up); }
+.delta.down { color: var(--down); }
+.delta small { color: var(--muted); font-weight: 400; }
+.spark { width: 100%; height: auto; display: block; touch-action: pan-y; cursor: crosshair; }
+.spark path { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.spark circle { fill: var(--accent); }
+.spark .area { fill: var(--accent-soft); stroke: none; }
+.foot { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
+
+.tbl-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; min-width: 600px; font-size: 14px; }
+th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+td.r, th.r { text-align: right; }
+.bar { display: block; height: 6px; border-radius: 3px; background: var(--accent); min-width: 4px; }
+.barcell { width: 22%; }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 8px; vertical-align: -1px; }
+.nm { display: inline-block; max-width: 280px; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+
+.chart-card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+.chart-card svg { width: 100%; height: auto; display: block; touch-action: pan-y; cursor: crosshair; }
+.ax { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
+.gl { stroke: var(--line); stroke-width: 1; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 10px; padding: 0; list-style: none; font-size: 13px; }
+
+/* Painel de busca */
+details.busca { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+details.busca > summary { cursor: pointer; font-family: var(--font-display); font-weight: 600; font-size: 16px; padding: 14px 16px; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+details.busca > summary::-webkit-details-marker { display: none; }
+details.busca > summary::after { content: "Abrir"; font-family: var(--font-body); font-size: 12px; font-weight: 600; color: var(--accent); }
+details.busca[open] > summary::after { content: "Fechar"; }
+.busca-body { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 16px; }
+.tabs { display: flex; gap: 4px; padding: 4px; background: var(--bg); border-radius: 9px; }
+.tab { flex: 1; font-weight: 600; font-size: 14px; padding: 9px 10px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); }
+.tab[aria-selected="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 2px rgba(0,0,0,.18); }
 form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .full { grid-column: 1 / -1; }
 label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); min-width: 0; }
@@ -75,127 +156,179 @@ select, input[type="text"], input[type="search"] {
 select:disabled, input:disabled { opacity: .55; cursor: not-allowed; }
 .row { display: flex; gap: 10px; align-items: flex-end; }
 .row label { flex: 1; }
-button.primary { font: inherit; font-weight: 600; font-size: 15px; padding: 11px 18px; border-radius: 8px; border: 0; background: var(--accent); color: var(--on-accent); cursor: pointer; white-space: nowrap; }
-button.primary:disabled { opacity: .55; cursor: not-allowed; }
-button.ghost { font: inherit; font-weight: 500; font-size: 14px; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--fg); cursor: pointer; }
 .hint { margin: 0; font-size: 13px; color: var(--muted); }
-
 #status { min-height: 1.4em; font-size: 14px; color: var(--muted); margin: 0; }
 #status.erro { color: var(--err-fg); background: var(--err-bg); padding: 10px 12px; border-radius: 8px; }
-
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
-.top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; align-items: flex-start; }
-.card h2 { font-size: 20px; line-height: 1.25; overflow-wrap: anywhere; }
-.meta { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
-.code { font-family: var(--font-mono); font-size: 12px; color: var(--muted); background: var(--bg); padding: 3px 8px; border-radius: 6px; white-space: nowrap; }
-.price { font-family: var(--font-display); font-size: 44px; font-weight: 600; letter-spacing: -0.03em; line-height: 1.05; }
-.ref { margin: 0; color: var(--muted); font-size: 13px; }
-.spark { width: 100%; height: 48px; display: block; }
-.spark path { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-.spark .area { fill: var(--accent-soft); stroke: none; }
-.spark circle { fill: var(--accent); }
-.tbl { overflow-x: auto; }
-table { border-collapse: collapse; width: 100%; font-size: 14px; }
-th, td { text-align: left; padding: 9px 4px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
-tr:last-child td { border-bottom: 0; }
-.r { text-align: right; }
+.prev { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.prev h3 { font-size: 18px; line-height: 1.25; overflow-wrap: anywhere; }
+.prev .meta { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+.prev .price { font-size: 38px; }
+.prev table { min-width: 0; }
+.prev .tbl { overflow-x: auto; }
 .var { display: block; font-size: 12.5px; color: var(--muted); }
 .var.up { color: var(--up); }
 .var.down { color: var(--down); }
-.up { color: var(--up); }
-.down { color: var(--down); }
-.actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.add-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.add-row label { flex: 1 1 200px; }
+.add-btns { display: flex; flex-wrap: wrap; gap: 8px; }
 .copiado { font-size: 13px; color: var(--muted); }
 
-details { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; font-size: 14px; }
-summary { cursor: pointer; font-weight: 600; }
-details p { margin: 8px 0 0; color: var(--muted); max-width: 62ch; }
-footer { font-size: 12.5px; color: var(--muted); max-width: 70ch; }
-footer p { margin: 0 0 6px; }
+.how { font-size: 13px; color: var(--muted); max-width: 72ch; }
+.how p { margin: 0 0 6px; }
+details.mini { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; font-size: 14px; }
+details.mini summary { cursor: pointer; font-weight: 600; }
+details.mini p { margin: 8px 0 0; color: var(--muted); max-width: 62ch; }
+.range { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; font-size: 12px; color: var(--muted); }
+.pt.on { stroke: var(--fg); stroke-width: 2; }
+.guide { stroke: transparent; stroke-width: 1; }
+.guide.on { stroke: var(--muted); stroke-dasharray: 3 3; }
+.dica { position: fixed; z-index: 30; pointer-events: none; background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; font-size: 13px; box-shadow: 0 8px 28px rgba(0,0,0,.4); max-width: min(420px, calc(100vw - 16px)); }
+.dica strong { display: block; margin-bottom: 4px; font-family: var(--font-display); }
+.dica .l { display: flex; gap: 14px; align-items: baseline; justify-content: space-between; }
+.dica .l span:first-child { min-width: 0; }
+.dica .tag { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); margin-left: 6px; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: max(20px, env(safe-area-inset-bottom, 0px)); background: var(--fg); color: var(--bg); padding: 10px 14px; border-radius: 10px; font-size: 14px; display: flex; gap: 14px; align-items: center; z-index: 20; max-width: calc(100% - 32px); box-shadow: 0 6px 24px rgba(0,0,0,.3); }
+.toast button { background: transparent; border: 0; color: inherit; font-weight: 700; text-decoration: underline; padding: 0; }
 
 @media (max-width: 560px) {
   h1 { font-size: 28px; }
+  .status { align-items: flex-start; text-align: left; }
   form { grid-template-columns: 1fr; }
-  .price { font-size: 38px; }
   .row { flex-direction: column; align-items: stretch; }
-  .card { padding: 16px; }
+  .prev .price { font-size: 34px; }
+  .tbl-wrap table { min-width: 0; }
+  .tbl-wrap thead { display: none; }
+  .tbl-wrap tbody tr { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .tbl-wrap tbody tr:last-child { border-bottom: 0; }
+  .tbl-wrap td { border: 0; padding: 0; white-space: normal; }
+  .tbl-wrap td:nth-child(1) { grid-column: 1; grid-row: 1 / 3; }
+  .tbl-wrap td:nth-child(2) { grid-column: 2; grid-row: 1; text-align: right; }
+  .tbl-wrap td:nth-child(3) { grid-column: 2; grid-row: 2; text-align: right; }
+  .tbl-wrap .barcell { display: none; }
+  .tbl-wrap td:nth-child(5) { grid-column: 1 / -1; text-align: left; margin-top: 8px; }
+  .tbl-wrap .nm { display: inline; max-width: none; white-space: normal; overflow: visible; }
+  .chart-card.m .ax { font-size: 13px; }
 }
-@media (prefers-reduced-motion: no-preference) { button { transition: opacity .15s; } }
 </style>
 </head>
 <body>
-<main class="wrap">
+<div class="wrap">
   <header>
-    <h1>Consulta FIPE</h1>
-    <p class="sub">Preço da Tabela FIPE de carros e motos, com os últimos 3 meses. Escolha o modelo ou digite o código FIPE.</p>
+    <div>
+      <h1>Monitor FIPE</h1>
+      <p class="sub">Seus veículos e os que você quer comprar</p>
+    </div>
+    <div class="status" id="status-topo" aria-live="polite">
+      <span class="chip"><i></i>Direto da FIPE</span>
+      <span id="status-topo-texto">Carregando…</span>
+      <button class="btn small ghost" type="button" id="tema">Usar tema claro</button>
+    </div>
   </header>
 
-  <section class="panel" aria-label="Busca">
-    <div class="tabs" role="tablist" aria-label="Forma de busca">
-      <button class="tab" role="tab" id="tab-modelo" aria-selected="true" aria-controls="painel-modelo" type="button">Por modelo</button>
-      <button class="tab" role="tab" id="tab-codigo" aria-selected="false" aria-controls="painel-codigo" type="button" tabindex="-1">Por código FIPE</button>
-    </div>
+  <div id="avisos"></div>
 
-    <form id="painel-modelo" role="tabpanel" aria-labelledby="tab-modelo" autocomplete="off">
-      <label for="tipo">Tipo
-        <select id="tipo"><option value="cars">Carros</option><option value="motorcycles">Motos</option></select>
-      </label>
-      <label for="marca">Marca
-        <select id="marca" disabled><option>Carregando…</option></select>
-      </label>
-      <label for="filtro" class="full">Modelo
-        <input type="search" id="filtro" placeholder="Filtrar: civic, mt-03, gol 1.0" disabled>
-      </label>
-      <label for="modelo" class="full">
-        <span class="sr" style="position:absolute;left:-9999px">Lista de modelos</span>
-        <select id="modelo" disabled><option>Escolha a marca primeiro</option></select>
-      </label>
-      <label for="ano" class="full">Ano e combustível
-        <select id="ano" disabled><option>Escolha o modelo primeiro</option></select>
-      </label>
-    </form>
-
-    <form id="painel-codigo" role="tabpanel" aria-labelledby="tab-codigo" autocomplete="off" hidden>
-      <div class="row full">
-        <label for="codigo">Código FIPE
-          <input type="text" id="codigo" inputmode="numeric" placeholder="000000-0" maxlength="9">
-        </label>
-        <button class="primary" id="btn-codigo" type="submit">Buscar</button>
+  <details class="busca" id="busca">
+    <summary>Consultar e adicionar veículo</summary>
+    <div class="busca-body">
+      <div class="tabs" role="tablist" aria-label="Forma de busca">
+        <button class="tab" role="tab" id="tab-modelo" aria-selected="true" aria-controls="painel-modelo" type="button">Por modelo</button>
+        <button class="tab" role="tab" id="tab-codigo" aria-selected="false" aria-controls="painel-codigo" type="button" tabindex="-1">Por código FIPE</button>
       </div>
-      <label for="ano-codigo" class="full">Ano e combustível
-        <select id="ano-codigo" disabled><option>Busque o código primeiro</option></select>
-      </label>
-      <p class="hint full">O código fica no formato 000000-0 e aparece em qualquer consulta da FIPE, inclusive nesta página.</p>
-    </form>
 
-    <p id="status" role="status" aria-live="polite"></p>
+      <form id="painel-modelo" role="tabpanel" aria-labelledby="tab-modelo" autocomplete="off">
+        <label for="tipo">Tipo
+          <select id="tipo"><option value="cars">Carros</option><option value="motorcycles">Motos</option></select>
+        </label>
+        <label for="marca">Marca
+          <select id="marca" disabled><option>Carregando…</option></select>
+        </label>
+        <label for="filtro" class="full">Modelo
+          <input type="search" id="filtro" placeholder="Filtrar: civic, mt-03, gol 1.0" disabled>
+        </label>
+        <label for="modelo" class="full">
+          <span style="position:absolute;left:-9999px">Lista de modelos</span>
+          <select id="modelo" disabled><option>Escolha a marca primeiro</option></select>
+        </label>
+        <label for="ano" class="full">Ano e combustível
+          <select id="ano" disabled><option>Escolha o modelo primeiro</option></select>
+        </label>
+      </form>
+
+      <form id="painel-codigo" role="tabpanel" aria-labelledby="tab-codigo" autocomplete="off" hidden>
+        <div class="row full">
+          <label for="codigo">Código FIPE
+            <input type="text" id="codigo" inputmode="numeric" placeholder="000000-0" maxlength="9">
+          </label>
+          <button class="btn" id="btn-codigo" type="submit">Buscar</button>
+        </div>
+        <label for="ano-codigo" class="full">Ano e combustível
+          <select id="ano-codigo" disabled><option>Busque o código primeiro</option></select>
+        </label>
+        <p class="hint full">O código fica no formato 000000-0 e aparece em qualquer consulta da FIPE, inclusive aqui.</p>
+      </form>
+
+      <p id="status" role="status" aria-live="polite"></p>
+      <div id="resultado" aria-live="polite"></div>
+    </div>
+  </details>
+
+  <section id="sec-meus">
+    <div class="sec-head"><h2>Meus veículos</h2><button class="btn small ghost" type="button" data-abrir="meus">Adicionar veículo</button></div>
+    <div id="lista-meus"></div>
   </section>
 
-  <section id="resultado" aria-live="polite"></section>
+  <section id="sec-quero">
+    <div class="sec-head"><h2>Veículos para acompanhamento</h2><button class="btn small ghost" type="button" data-abrir="quero">Adicionar veículo</button></div>
+    <div id="lista-quero"></div>
+  </section>
 
-  <details>
+  <section id="sec-levar">
+    <div class="sec-head"><h2>Levar as listas para outro aparelho</h2></div>
+    <p class="sec-note">As listas ficam salvas só neste navegador. O link abaixo leva os dois grupos para o celular ou para outro computador.</p>
+    <div class="add-btns"><button class="btn ghost" type="button" id="copiar-listas">Copiar link das minhas listas</button><span class="copiado" id="copiado-listas" role="status"></span></div>
+  </section>
+
+  <details class="mini">
     <summary>Só tenho a placa. E agora?</summary>
     <p>A Tabela FIPE não tem busca por placa. A placa só serve para descobrir marca, modelo e ano, que estão no documento do veículo. Com esses dados, use a busca por modelo.</p>
   </details>
 
-  <footer>
-    <p>Valores da Tabela FIPE, obtidos pela API pública fipe.parallelum.com.br. A FIPE publica uma tabela por mês, e a consulta gratuita mostra o mês atual e os dois anteriores.</p>
-    <p>Os valores são uma referência de mercado. Não substituem avaliação, laudo ou proposta de compra.</p>
-  </footer>
-</main>
+  <div class="how">
+    <p>A FIPE publica uma tabela por mês, e a consulta gratuita mostra o mês atual e os dois anteriores. Este monitor guarda os meses que já passaram por aqui, então o histórico cresce a cada visita.</p>
+    <p>Setas verdes e vermelhas mostram o que é bom para você. Em Meus veículos, subir é bom. Em Veículos para acompanhamento, cair é bom.</p>
+    <p>Valores da Tabela FIPE pela API pública fipe.parallelum.com.br. São uma referência de mercado e não substituem avaliação, laudo ou proposta de compra.</p>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+<div class="dica" id="dica" hidden></div>
 
 <script>
 (function () {
   "use strict";
   var API = "https://fipe.parallelum.com.br/api/v2";
+  var CHAVE = "fipemonitor:v1";
+  var LIMITE = { meus: 12, quero: 6 };
+  var NOMES = { meus: "Meus veículos", quero: "Veículos para acompanhamento" };
   var TIPO_ROTULO = { cars: "Carro", motorcycles: "Moto" };
+  var ABREV = { cars: "c", motorcycles: "m" };
+  var DESABREV = { c: "cars", m: "motorcycles" };
+  var MESES = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+  var CORES = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)", "var(--s5)", "var(--s6)"];
   var brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 2 });
   var pct = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
   var mem = {};
   var token = 0;
   var models = [];
   var codigoCtx = null;
+  var previa = null;
+  var persistir = true;
+  var limiteAtingido = false;
+  var tabelaAtual = null;
+  var estado = { meus: [], quero: [] };
+  var ultimoRemovido = null;
+  var toastTimer = null;
+  var destino = "meus";
 
   function $(id) { return document.getElementById(id); }
   function esc(s) {
@@ -207,17 +340,49 @@ footer p { margin: 0 0 6px; }
   function rotuloAno(n) { return String(n).replace(/^32000/, "0 km"); }
   function precoNum(t) { return parseFloat(String(t).replace(/[^\d,]/g, "").replace(",", ".")); }
   function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+  function mesCurto(m) {
+    var r = /([a-zçã]+)\s*(?:de|\/)\s*(\d{4})/i.exec(String(m || ""));
+    if (!r) return String(m || "");
+    var i = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"].indexOf(r[1].toLowerCase());
+    return i < 0 ? r[0] : MESES[i] + "/" + r[2].slice(2);
+  }
+  function mesLongo(m) { var r = /([a-zçã]+)\s*(?:de|\/)\s*(\d{4})/i.exec(String(m || "")); return r ? r[1].toLowerCase() + "/" + r[2] : String(m || ""); }
 
-  function guardado(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
-  function guardar(k, v) { try { sessionStorage.setItem(k, v); } catch (e) { /* sem cache */ } }
+  /* ---------- Armazenamento ---------- */
+  function lerLS(k) { try { return window.localStorage.getItem(k); } catch (e) { persistir = false; return null; } }
+  function gravarLS(k, v) { try { window.localStorage.setItem(k, v); return true; } catch (e) { persistir = false; return false; } }
+  function guardado(k) { try { return window.sessionStorage.getItem(k); } catch (e) { return null; } }
+  function guardar(k, v) { try { window.sessionStorage.setItem(k, v); } catch (e) { /* sem cache */ } }
 
-  function api(path, nocache) {
+  function itemValido(it) {
+    return it && (it.t === "cars" || it.t === "motorcycles") && /^\d{6}-\d$/.test(it.c) && /^\d{4,5}-\d$/.test(it.a);
+  }
+  function limpar(it) {
+    return {
+      k: it.t + "|" + it.c + "|" + it.a, t: it.t, c: it.c, a: it.a,
+      apelido: String(it.apelido || "").slice(0, 40),
+      info: it.info && typeof it.info === "object" ? it.info : null,
+      hist: it.hist && typeof it.hist === "object" ? it.hist : {}
+    };
+  }
+  function carregarEstado() {
+    var bruto = lerLS(CHAVE);
+    if (!bruto) return;
+    try {
+      var o = JSON.parse(bruto);
+      ["meus", "quero"].forEach(function (l) {
+        estado[l] = (Array.isArray(o[l]) ? o[l] : []).filter(itemValido).map(limpar).slice(0, LIMITE[l]);
+      });
+    } catch (e) { /* lista corrompida: começa vazia */ }
+  }
+  function salvar() { gravarLS(CHAVE, JSON.stringify(estado)); }
+
+  /* ---------- API ---------- */
+  function api(path) {
     var key = "fipe:" + path;
     if (mem[key]) return Promise.resolve(mem[key]);
-    if (!nocache) {
-      var s = guardado(key);
-      if (s) { try { var v = JSON.parse(s); mem[key] = v; return Promise.resolve(v); } catch (e) { /* ignora */ } }
-    }
+    var s = guardado(key);
+    if (s) { try { var v = JSON.parse(s); mem[key] = v; return Promise.resolve(v); } catch (e) { /* ignora */ } }
     return fetch(API + path).then(function (r) {
       if (r.status === 429) throw { kind: "limite" };
       if (!r.ok) throw { kind: "naoencontrado", status: r.status };
@@ -226,36 +391,299 @@ footer p { margin: 0 0 6px; }
       mem[key] = v; guardar(key, JSON.stringify(v)); return v;
     });
   }
-
   function msgErro(e) {
     if (e && e.kind === "limite") return "A FIPE limitou as consultas gratuitas de hoje para a sua rede. Tente de novo mais tarde.";
     if (e && e.kind === "rede") return "Não consegui falar com a FIPE agora. Verifique a conexão e tente de novo.";
     return "Não encontrei esse veículo na Tabela FIPE. Confira os dados e tente de novo.";
   }
-  function status(texto, erro) {
-    var el = $("status");
-    el.textContent = texto || "";
-    el.className = erro ? "erro" : "";
+  function status(texto, erro) { var el = $("status"); el.textContent = texto || ""; el.className = erro ? "erro" : ""; }
+
+  /* ---------- Cálculos das listas ---------- */
+  function stats(it) {
+    var ks = Object.keys(it.hist).map(Number).filter(function (n) { return isFinite(n); }).sort(function (a, b) { return a - b; });
+    var last = ks[ks.length - 1], prev = ks[ks.length - 2];
+    return {
+      ks: ks, price: last != null ? it.hist[last].p : null,
+      prevPrice: prev != null ? it.hist[prev].p : null, prevMonth: prev != null ? it.hist[prev].m : null,
+      vals: ks.map(function (k) { return it.hist[k].p; }),
+      labels: ks.map(function (k) { return mesCurto(it.hist[k].m); })
+    };
+  }
+  function nomeDe(it) {
+    if (it.apelido) return it.apelido;
+    if (!it.info || !it.info.model) return it.c;
+    return it.info.model + (it.info.year ? " " + (it.info.year === 32000 ? "0 km" : it.info.year) : "");
+  }
+  function subDe(it) {
+    if (!it.info) return "";
+    var ano = it.info.year === 32000 ? "0 km" : it.info.year;
+    return TIPO_ROTULO[it.t] + " · " + (it.info.brand || "") + " · " + ano + " · " + (it.info.fuel || "");
   }
 
-  function preencher(sel, placeholder, itens, rotulo) {
-    sel.innerHTML = "";
-    var p = document.createElement("option");
-    p.value = ""; p.textContent = placeholder; sel.appendChild(p);
-    itens.forEach(function (it) {
-      var o = document.createElement("option");
-      o.value = it.code; o.textContent = rotulo ? rotulo(it) : it.name; sel.appendChild(o);
+  function deltaHtml(lista, st) {
+    if (st.prevPrice == null) return '<div class="delta">Sem mês anterior para comparar</div>';
+    var d = st.price - st.prevPrice;
+    if (d === 0) return '<div class="delta">• Sem variação <small>desde ' + esc(mesCurto(st.prevMonth)) + "</small></div>";
+    var up = d > 0, bom = lista === "quero" ? !up : up;
+    var p = d / st.prevPrice * 100;
+    return '<div class="delta num ' + (bom ? "good" : "bad") + '">' + (up ? "▲ +" : "▼ −") + esc(brl.format(Math.abs(d))) + " (" + (up ? "+" : "−") + pct.format(Math.abs(p)) + "%) <small>desde " + esc(mesCurto(st.prevMonth)) + "</small></div>";
+  }
+
+  function spark(vals, labs) {
+    var W = 240, H = 48, pad = 6, n = vals.length;
+    var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals), span = max - min || 1;
+    var pts = vals.map(function (v, i) {
+      return [n === 1 ? W - pad : pad + i * (W - 2 * pad) / (n - 1), n === 1 ? H / 2 : H - pad - (v - min) / span * (H - 2 * pad)];
     });
-    sel.disabled = false;
-    sel.value = "";
+    var xs = pts.map(function (p) { return p[0].toFixed(1); }).join("|");
+    var forma = "";
+    if (n > 1) {
+      var linha = pts.map(function (p, i) { return (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1); }).join(" ");
+      var e = pts[n - 1];
+      forma = '<path class="area" d="' + linha + " L" + e[0].toFixed(1) + " " + H + " L" + pts[0][0].toFixed(1) + " " + H + ' Z"/><path d="' + linha + '"/>';
+    }
+    var pontos = pts.map(function (p, i) { return '<circle class="pt" data-i="' + i + '" cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="' + (i === n - 1 ? 4 : 3) + '"/>'; }).join("");
+    return '<svg class="spark" viewBox="0 0 ' + W + " " + H + '" data-xs="' + xs + '" data-vals="' + vals.join("|") + '" data-labels="' + esc((labs || []).join("|")) + '" role="img" aria-label="Evolução do preço. Passe o mouse ou toque para ver os valores.">' + forma + pontos + "</svg>";
   }
-  function desligar(sel, texto) {
-    sel.innerHTML = "";
-    var o = document.createElement("option"); o.textContent = texto; sel.appendChild(o);
-    sel.disabled = true;
+  function faixa(st) {
+    if (st.vals.length < 2) return "";
+    var max = Math.max.apply(null, st.vals), min = Math.min.apply(null, st.vals);
+    if (max === min) return "";
+    return '<div class="range num"><span>Maior ' + esc(brl.format(max)) + " (" + esc(st.labels[st.vals.indexOf(max)]) + ")</span><span>Menor " + esc(brl.format(min)) + " (" + esc(st.labels[st.vals.indexOf(min)]) + ")</span></div>";
   }
 
-  /* ---------- Abas ---------- */
+  function cartao(lista, it) {
+    var st = stats(it), nome = nomeDe(it);
+    var delBtn = '<button class="del" type="button" data-del="' + lista + '" data-k="' + esc(it.k) + '" aria-label="Remover ' + esc(nome) + '">Remover</button>';
+    if (st.price == null) {
+      return '<article class="card"><div class="card-top"><div><h3>' + esc(nome) + '</h3><div class="code">FIPE ' + esc(it.c) + " · " + esc(it.a.split("-")[0]) + "</div></div>" + delBtn + '</div><div class="delta">Buscando preço na FIPE…</div></article>';
+    }
+    return '<article class="card"><div class="card-top"><div><h3>' + esc(nome) + '</h3><div class="code">FIPE ' + esc(it.c) + "</div></div>" + delBtn + "</div>" +
+      '<div class="price num">' + esc(brl.format(st.price)) + "</div>" + deltaHtml(lista, st) + spark(st.vals, st.labels) + faixa(st) +
+      '<div class="foot"><span>' + esc(subDe(it)) + "</span><span>" + st.ks.length + (st.ks.length === 1 ? " mês" : " meses") + "</span></div></article>";
+  }
+
+  function tabela(itens) {
+    var linhas = itens.map(function (it) { return { it: it, st: stats(it) }; }).filter(function (x) { return x.st.price != null; });
+    linhas.sort(function (a, b) { return a.st.price - b.st.price; });
+    if (!linhas.length) return "";
+    var max = Math.max.apply(null, linhas.map(function (x) { return x.st.price; }));
+    var html = '<div class="tbl-wrap"><table><thead><tr><th>Veículo</th><th class="r">Preço FIPE</th><th class="r">Vs. mês anterior</th><th class="barcell"></th><th></th></tr></thead><tbody>';
+    linhas.forEach(function (x) {
+      var it = x.it, st = x.st, m = "—";
+      if (st.prevPrice != null) {
+        var d = st.price - st.prevPrice;
+        m = d === 0 ? "—" : '<span class="delta num ' + (d < 0 ? "good" : "bad") + '">' + (d > 0 ? "▲ +" : "▼ −") + esc(brl.format(Math.abs(d))) + "</span>";
+      }
+      var cor = CORES[itens.indexOf(it) % CORES.length];
+      html += '<tr><td><span class="sw" style="background:' + cor + '"></span><span class="nm" title="' + esc(nomeDe(it)) + '">' + esc(nomeDe(it)) + '</span> <span class="code">' + esc(it.c) + '</span></td><td class="r num"><strong>' + esc(brl.format(st.price)) + '</strong></td><td class="r num">' + m + '</td><td class="barcell"><span class="bar" style="width:' + Math.round(st.price / max * 100) + '%"></span></td><td class="r"><button class="del" type="button" data-del="quero" data-k="' + esc(it.k) + '" aria-label="Remover ' + esc(nomeDe(it)) + '">Remover</button></td></tr>';
+    });
+    return html + "</tbody></table></div>";
+  }
+
+  function grafico(itens) {
+    var meses = {}, rotulos = {};
+    itens.forEach(function (it) { Object.keys(it.hist).forEach(function (k) { meses[k] = 1; rotulos[k] = it.hist[k].m; }); });
+    var ks = Object.keys(meses).map(Number).sort(function (a, b) { return a - b; });
+    if (!ks.length) return "";
+    var todos = [];
+    itens.forEach(function (it) { ks.forEach(function (k) { if (it.hist[k]) todos.push(it.hist[k].p); }); });
+    var lo = Math.min.apply(null, todos), hi = Math.max.apply(null, todos);
+    var passo = Math.max(250, Math.ceil((hi - lo + 600) / 4 / 250) * 250);
+    var yMin = Math.floor((lo - 300) / 250) * 250, yMax = yMin + passo * 4;
+    var estreito = window.innerWidth < 560;
+    var W = estreito ? 420 : 680, H = 280, L = estreito ? 74 : 62, R = estreito ? 30 : 18, T = 14, B = 30;
+    function X(i) { return ks.length === 1 ? (L + W - R) / 2 : L + i * (W - L - R) / (ks.length - 1); }
+    function Y(v) { return T + (1 - (v - yMin) / (yMax - yMin)) * (H - T - B); }
+    var g = "";
+    for (var t = 0; t <= 4; t++) {
+      var v = yMin + t * passo, y = Y(v);
+      g += '<line class="gl" x1="' + L + '" x2="' + (W - R) + '" y1="' + y.toFixed(1) + '" y2="' + y.toFixed(1) + '"/><text class="ax" x="' + (L - 8) + '" y="' + (y + 4).toFixed(1) + '" text-anchor="end">' + esc(brl.format(v)) + "</text>";
+    }
+    ks.forEach(function (k, i) { g += '<line class="guide" data-i="' + i + '" x1="' + X(i).toFixed(1) + '" x2="' + X(i).toFixed(1) + '" y1="' + T + '" y2="' + (H - B) + '"/>'; });
+    ks.forEach(function (k, i) { g += '<text class="ax" x="' + X(i).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle">' + esc(mesCurto(rotulos[k])) + "</text>"; });
+    itens.forEach(function (it, si) {
+      var cor = CORES[si % CORES.length], pts = [];
+      ks.forEach(function (k, i) { if (it.hist[k]) pts.push([X(i), Y(it.hist[k].p), it.hist[k].m, it.hist[k].p, i]); });
+      if (pts.length > 1) g += '<path d="' + pts.map(function (p, i) { return (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1); }).join(" ") + '" fill="none" stroke="' + cor + '" stroke-width="2.25" stroke-linejoin="round" stroke-linecap="round"/>';
+      pts.forEach(function (p, i) {
+        g += '<circle class="pt" data-i="' + p[4] + '" cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="' + (i === pts.length - 1 ? 4.5 : 3) + '" fill="' + cor + '"/>';
+      });
+    });
+    var dados = ks.map(function (k) {
+      var r = [];
+      itens.forEach(function (it, si) { if (it.hist[k]) r.push({ n: nomeDe(it), c: CORES[si % CORES.length], p: it.hist[k].p }); });
+      r.sort(function (a, b) { return b.p - a.p; });
+      return { m: mesCurto(rotulos[k]), r: r };
+    });
+    var xsG = ks.map(function (k, i) { return X(i).toFixed(1); }).join("|");
+    var leg = itens.map(function (it, si) { return '<li><span class="sw" style="background:' + CORES[si % CORES.length] + '"></span>' + esc(nomeDe(it)) + "</li>"; }).join("");
+    return '<div class="chart-card' + (estreito ? " m" : "") + '"><ul class="legend">' + leg + '</ul><svg viewBox="0 0 ' + W + " " + H + '" data-xs="' + xsG + '" data-rows="' + esc(JSON.stringify(dados)) + '" role="img" aria-label="Preço FIPE mensal dos veículos em acompanhamento. Passe o mouse ou toque para ver os valores.">' + g + "</svg></div>";
+  }
+
+  function vazio(lista) {
+    var txt = lista === "meus" ? "Nenhum veículo aqui ainda. Busque o seu por modelo ou código FIPE e adicione para acompanhar o valor mês a mês." : "Nenhum veículo em acompanhamento. Adicione os que você quer comprar para compará-los lado a lado.";
+    return '<div class="state"><p>' + txt + '</p><button class="btn" type="button" data-abrir="' + lista + '">Adicionar veículo</button></div>';
+  }
+
+  function render() {
+    esconderDica();
+    $("lista-meus").innerHTML = estado.meus.length ? '<div class="grid">' + estado.meus.map(function (it) { return cartao("meus", it); }).join("") + "</div>" : vazio("meus");
+    $("lista-quero").innerHTML = estado.quero.length ? tabela(estado.quero) + grafico(estado.quero) : vazio("quero");
+    $("status-topo-texto").innerHTML = tabelaAtual ? "Tabela de <strong>" + esc(mesLongo(tabelaAtual)) + "</strong>" : (limiteAtingido ? "FIPE indisponível agora" : "Carregando a tabela…");
+    desenharAvisos();
+  }
+
+  function desenharAvisos() {
+    var html = "";
+    if (!persistir) html += '<div class="banner">Este navegador não deixa guardar a lista. O que você adicionar some ao fechar a página.</div>';
+    if (limiteAtingido) html += '<div class="banner erro">A FIPE limitou as consultas gratuitas de hoje para a sua rede. Os preços já carregados continuam aqui, e os novos aparecem quando o limite voltar.</div>';
+    var ex = $("aviso-importar");
+    var guarda = ex ? ex.outerHTML : "";
+    $("avisos").innerHTML = html + guarda;
+    bindImportar();
+  }
+
+  /* ---------- Atualização dos preços ---------- */
+  function topRefs() { return api("/references").then(function (all) { return all.slice(0, 3); }); }
+  function atualizarItem(it) {
+    return topRefs().then(function (refs) {
+      if (refs[0]) tabelaAtual = refs[0].month;
+      var falta = refs.filter(function (r) { return !it.hist[r.code]; });
+      return Promise.all(falta.map(function (r) {
+        return api("/" + it.t + "/" + it.c + "/years/" + it.a + "?reference=" + r.code).then(function (d) {
+          it.hist[r.code] = { m: d.referenceMonth, p: precoNum(d.price) };
+          it.info = { model: d.model, brand: d.brand, year: d.modelYear, fuel: d.fuel };
+        }, function (e) { if (e && e.kind === "limite") limiteAtingido = true; });
+      }));
+    }).then(function () { salvar(); render(); }, function (e) { if (e && e.kind === "limite") limiteAtingido = true; render(); });
+  }
+  function atualizarTudo() { return Promise.all(estado.meus.concat(estado.quero).map(atualizarItem)); }
+
+  /* ---------- Adicionar e remover ---------- */
+  function toast(texto, desfazer) {
+    var el = $("toast");
+    el.innerHTML = "<span>" + esc(texto) + "</span>" + (desfazer ? '<button type="button" id="desfazer">Desfazer</button>' : "");
+    el.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.hidden = true; }, desfazer ? 7000 : 3500);
+    if (desfazer) $("desfazer").addEventListener("click", function () {
+      if (!ultimoRemovido) return;
+      var u = ultimoRemovido; ultimoRemovido = null;
+      if (estado[u.lista].length < LIMITE[u.lista]) { estado[u.lista].splice(Math.min(u.idx, estado[u.lista].length), 0, u.it); salvar(); render(); }
+      el.hidden = true;
+    });
+  }
+  function adicionar(lista) {
+    if (!previa) return;
+    if (estado[lista].some(function (x) { return x.k === previa.k; })) { toast("Este veículo já está em " + NOMES[lista] + "."); return; }
+    if (estado[lista].length >= LIMITE[lista]) { toast(NOMES[lista] + " aceita até " + LIMITE[lista] + " veículos. Remova um para adicionar outro."); return; }
+    var ap = $("apelido") ? $("apelido").value.trim() : "";
+    var it = limpar({ t: previa.t, c: previa.c, a: previa.a, apelido: ap, info: previa.info, hist: previa.hist });
+    estado[lista].push(it);
+    salvar(); render();
+    toast("Adicionado a " + NOMES[lista] + ".");
+    var alvo = $("sec-" + lista); if (alvo && alvo.scrollIntoView) alvo.scrollIntoView();
+  }
+  function remover(lista, k) {
+    var idx = -1;
+    estado[lista].forEach(function (x, i) { if (x.k === k) idx = i; });
+    if (idx < 0) return;
+    ultimoRemovido = { lista: lista, idx: idx, it: estado[lista][idx] };
+    estado[lista].splice(idx, 1);
+    salvar(); render();
+    toast("Removido de " + NOMES[lista] + ".", true);
+  }
+  document.addEventListener("click", function (ev) {
+    var b = ev.target.closest ? ev.target.closest("button") : null;
+    if (!b) return;
+    if (b.getAttribute("data-del")) { remover(b.getAttribute("data-del"), b.getAttribute("data-k")); return; }
+    if (b.getAttribute("data-abrir")) {
+      destino = b.getAttribute("data-abrir");
+      $("busca").open = true;
+      $("busca").scrollIntoView();
+      $("tipo").focus();
+      return;
+    }
+    if (b.getAttribute("data-add")) { adicionar(b.getAttribute("data-add")); return; }
+  });
+
+  /* ---------- Links ---------- */
+  function codificaItem(it) {
+    var ap = it.apelido ? "." + encodeURIComponent(it.apelido).replace(/\./g, "%2E") : "";
+    return ABREV[it.t] + "." + it.c + "." + it.a + ap;
+  }
+  function lerItem(txt) {
+    var p = String(txt).split(".");
+    var t = DESABREV[p[0]];
+    if (!t || p.length < 3) return null;
+    var it = { t: t, c: p[1], a: p[2] };
+    if (!itemValido(it)) return null;
+    if (p[3]) { try { it.apelido = decodeURIComponent(p[3]).slice(0, 40); } catch (e) { it.apelido = ""; } }
+    return limpar(it);
+  }
+  function lerLista(txt) {
+    if (!txt) return [];
+    return String(txt).split(",").map(lerItem).filter(Boolean);
+  }
+  function parametros() {
+    var h = location.hash.replace(/^#/, "");
+    var o = {};
+    h.split("&").forEach(function (par) { var i = par.indexOf("="); if (i > 0) o[par.slice(0, i)] = par.slice(i + 1); });
+    return o;
+  }
+  function linkListas() {
+    var m = estado.meus.map(codificaItem).join(","), q = estado.quero.map(codificaItem).join(",");
+    var partes = [];
+    if (m) partes.push("m=" + m);
+    if (q) partes.push("q=" + q);
+    return location.origin + location.pathname + (partes.length ? "#" + partes.join("&") : "");
+  }
+  function copiar(texto, alvoMsg) {
+    function ok() { $(alvoMsg).textContent = "Link copiado."; }
+    function falha() { $(alvoMsg).textContent = "Copie o endereço da barra do navegador."; }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(texto).then(ok, falha); else falha();
+  }
+  $("copiar-listas").addEventListener("click", function () {
+    var link = linkListas();
+    try { history.replaceState(null, "", link.slice(location.origin.length)); } catch (e) { /* ignora */ }
+    copiar(link, "copiado-listas");
+  });
+
+  var pendente = null;
+  function mostrarImportar(m, q) {
+    pendente = { m: m, q: q };
+    var partes = [];
+    if (m.length) partes.push(m.length + " em Meus veículos");
+    if (q.length) partes.push(q.length + " em Veículos para acompanhamento");
+    var html = '<div class="banner" id="aviso-importar"><span>Este link traz uma lista: ' + partes.join(" e ") + '.</span><span class="b-actions"><button class="btn small" type="button" id="imp-sim">Adicionar às minhas listas</button><button class="btn small ghost" type="button" id="imp-nao">Ignorar</button></span></div>';
+    $("avisos").insertAdjacentHTML("beforeend", html);
+    bindImportar();
+  }
+  function bindImportar() {
+    var sim = $("imp-sim"), nao = $("imp-nao");
+    if (!sim) return;
+    sim.onclick = function () {
+      if (!pendente) return;
+      ["meus", "quero"].forEach(function (l) {
+        var novos = pendente[l === "meus" ? "m" : "q"];
+        novos.forEach(function (it) {
+          if (estado[l].length < LIMITE[l] && !estado[l].some(function (x) { return x.k === it.k; })) estado[l].push(it);
+        });
+      });
+      pendente = null; salvar();
+      try { history.replaceState(null, "", location.pathname); } catch (e) { /* ignora */ }
+      var el = $("aviso-importar"); if (el) el.remove();
+      render(); atualizarTudo();
+    };
+    nao.onclick = function () {
+      pendente = null;
+      try { history.replaceState(null, "", location.pathname); } catch (e) { /* ignora */ }
+      var el = $("aviso-importar"); if (el) el.remove();
+    };
+  }
+
+  /* ---------- Abas e campos de busca ---------- */
   function aba(qual) {
     var modelo = qual === "modelo";
     $("tab-modelo").setAttribute("aria-selected", modelo);
@@ -269,14 +697,20 @@ footer p { margin: 0 0 6px; }
   $("tab-modelo").addEventListener("click", function () { aba("modelo"); });
   $("tab-codigo").addEventListener("click", function () { aba("codigo"); });
 
-  /* ---------- Busca por modelo ---------- */
+  function preencher(sel, placeholder, itens, rotulo) {
+    sel.innerHTML = "";
+    var p = document.createElement("option"); p.value = ""; p.textContent = placeholder; sel.appendChild(p);
+    itens.forEach(function (it) { var o = document.createElement("option"); o.value = it.code; o.textContent = rotulo ? rotulo(it) : it.name; sel.appendChild(o); });
+    sel.disabled = false; sel.value = "";
+  }
+  function desligar(sel, texto) {
+    sel.innerHTML = ""; var o = document.createElement("option"); o.textContent = texto; sel.appendChild(o); sel.disabled = true;
+  }
+
   function carregarMarcas() {
     var tipo = $("tipo").value;
-    desligar($("marca"), "Carregando…");
-    desligar($("modelo"), "Escolha a marca primeiro");
-    desligar($("ano"), "Escolha o modelo primeiro");
-    $("filtro").value = ""; $("filtro").disabled = true;
-    status("");
+    desligar($("marca"), "Carregando…"); desligar($("modelo"), "Escolha a marca primeiro"); desligar($("ano"), "Escolha o modelo primeiro");
+    $("filtro").value = ""; $("filtro").disabled = true; status("");
     api("/" + tipo + "/brands").then(function (marcas) {
       if ($("tipo").value !== tipo) return;
       preencher($("marca"), "Escolha a marca (" + marcas.length + ")", marcas);
@@ -284,10 +718,7 @@ footer p { margin: 0 0 6px; }
   }
   function desenharModelos() {
     var termos = $("filtro").value.split(/\s+/).map(norm).filter(Boolean);
-    var lista = models.filter(function (m) {
-      var n = norm(m.name);
-      return termos.every(function (t) { return n.indexOf(t) !== -1; });
-    });
+    var lista = models.filter(function (m) { var n = norm(m.name); return termos.every(function (t) { return n.indexOf(t) !== -1; }); });
     preencher($("modelo"), lista.length + (lista.length === 1 ? " modelo encontrado" : " modelos encontrados"), lista);
     desligar($("ano"), "Escolha o modelo primeiro");
   }
@@ -295,8 +726,7 @@ footer p { margin: 0 0 6px; }
   $("marca").addEventListener("change", function () {
     var tipo = $("tipo").value, marca = $("marca").value;
     $("filtro").value = ""; $("filtro").disabled = true;
-    desligar($("modelo"), "Carregando modelos…");
-    desligar($("ano"), "Escolha o modelo primeiro");
+    desligar($("modelo"), "Carregando modelos…"); desligar($("ano"), "Escolha o modelo primeiro");
     if (!marca) { desligar($("modelo"), "Escolha a marca primeiro"); return; }
     status("");
     api("/" + tipo + "/brands/" + encodeURIComponent(marca) + "/models").then(function (m) {
@@ -316,27 +746,22 @@ footer p { margin: 0 0 6px; }
     }).catch(function (e) { status(msgErro(e), true); desligar($("ano"), "Não carregou"); });
   });
   $("ano").addEventListener("change", function () {
-    var ano = $("ano").value;
-    if (!ano) return;
+    var ano = $("ano").value; if (!ano) return;
     var tipo = $("tipo").value;
     consultar(tipo, "/" + tipo + "/brands/" + encodeURIComponent($("marca").value) + "/models/" + encodeURIComponent($("modelo").value) + "/years/" + encodeURIComponent(ano), ano);
   });
 
-  /* ---------- Busca por código ---------- */
   $("painel-codigo").addEventListener("submit", function (ev) {
     ev.preventDefault();
     var v = $("codigo").value.replace(/\s+/g, "");
     if (/^\d{7}$/.test(v)) v = v.slice(0, 6) + "-" + v.slice(6);
     if (!/^\d{6}-\d$/.test(v)) { status("Digite o código FIPE no formato 000000-0.", true); return; }
-    $("codigo").value = v;
-    buscarCodigo(v);
+    $("codigo").value = v; buscarCodigo(v);
   });
-  function buscarCodigo(codigo, depois) {
+  function buscarCodigo(codigo) {
     status("Buscando o código " + codigo + "…");
-    $("btn-codigo").disabled = true;
-    desligar($("ano-codigo"), "Buscando…");
-    var tipos = ["motorcycles", "cars"];
-    Promise.all(tipos.map(function (t) {
+    $("btn-codigo").disabled = true; desligar($("ano-codigo"), "Buscando…");
+    Promise.all(["motorcycles", "cars"].map(function (t) {
       return api("/" + t + "/" + codigo + "/years").then(function (anos) { return { t: t, anos: anos }; }, function (e) { return { t: t, erro: e }; });
     })).then(function (res) {
       $("btn-codigo").disabled = false;
@@ -350,97 +775,147 @@ footer p { margin: 0 0 6px; }
       codigoCtx = { tipo: ok.t, codigo: codigo };
       preencher($("ano-codigo"), "Escolha o ano (" + (ok.t === "cars" ? "carro" : "moto") + ")", ok.anos, function (a) { return rotuloAno(a.name); });
       status("");
-      if (depois) { $("ano-codigo").value = depois; }
-      else if (ok.anos.length === 1) { $("ano-codigo").value = ok.anos[0].code; $("ano-codigo").dispatchEvent(new Event("change")); }
+      if (ok.anos.length === 1) { $("ano-codigo").value = ok.anos[0].code; $("ano-codigo").dispatchEvent(new Event("change")); }
     });
   }
   $("ano-codigo").addEventListener("change", function () {
-    var ano = $("ano-codigo").value;
-    if (!ano || !codigoCtx) return;
+    var ano = $("ano-codigo").value; if (!ano || !codigoCtx) return;
     consultar(codigoCtx.tipo, "/" + codigoCtx.tipo + "/" + codigoCtx.codigo + "/years/" + encodeURIComponent(ano), ano);
   });
 
-  /* ---------- Consulta e resultado ---------- */
+  /* ---------- Prévia da consulta ---------- */
   function consultar(tipo, base, anoCodigo) {
     var tk = ++token;
     status("Consultando a FIPE…");
-    api("/references").catch(function () { return null; }).then(function (refs) {
-      var lista = (refs || []).slice(0, 3);
-      if (!lista.length) return api(base, true).then(function (d) { return [d]; });
-      return Promise.all(lista.map(function (rf, i) {
-        return api(base + "?reference=" + rf.code).then(function (d) { return d; }, function (e) { if (i === 0) throw e; return null; });
-      })).then(function (arr) { return arr.filter(Boolean); });
-    }).then(function (arr) {
+    api("/references").then(function (all) {
+      var refs = all.slice(0, 3);
+      return Promise.all(refs.map(function (rf, i) {
+        return api(base + "?reference=" + rf.code).then(function (d) { return { rf: rf, d: d }; }, function (e) { if (i === 0) throw e; return null; });
+      }));
+    }).then(function (res) {
       if (tk !== token) return;
-      desenhar(tipo, arr, anoCodigo);
+      res = res.filter(Boolean);
+      desenharPrevia(tipo, res, anoCodigo);
       status("");
     }).catch(function (e) {
       if (tk !== token) return;
-      $("resultado").innerHTML = "";
+      $("resultado").innerHTML = ""; previa = null;
       status(msgErro(e), true);
     });
   }
-
-  function spark(valores) {
-    var W = 280, H = 48, pad = 5;
-    var min = Math.min.apply(null, valores), max = Math.max.apply(null, valores), span = max - min || 1;
-    var pts = valores.map(function (v, i) {
-      return [valores.length === 1 ? W - pad : pad + i * (W - 2 * pad) / (valores.length - 1), H - pad - ((v - min) / span) * (H - 2 * pad)];
-    });
-    var e = pts[pts.length - 1];
-    if (pts.length < 2) return '<svg class="spark" viewBox="0 0 ' + W + " " + H + '" aria-hidden="true"><circle cx="' + e[0] + '" cy="' + e[1] + '" r="4"/></svg>';
-    var linha = pts.map(function (p, i) { return (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1); }).join(" ");
-    var area = linha + " L" + e[0].toFixed(1) + " " + H + " L" + pts[0][0].toFixed(1) + " " + H + " Z";
-    return '<svg class="spark" viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" aria-hidden="true"><path class="area" d="' + area + '"/><path d="' + linha + '" vector-effect="non-scaling-stroke"/><circle cx="' + e[0].toFixed(1) + '" cy="' + e[1].toFixed(1) + '" r="4"/></svg>';
-  }
-
-  function desenhar(tipo, arr, anoCodigo) {
-    var d = arr[0];
-    var linhas = arr.map(function (x, i) {
-      var atual = precoNum(x.price), ant = arr[i + 1] ? precoNum(arr[i + 1].price) : null, var_ = "—", cls = "";
+  function desenharPrevia(tipo, res, anoCodigo) {
+    var d = res[0].d;
+    var hist = {};
+    res.forEach(function (x) { hist[x.rf.code] = { m: x.d.referenceMonth, p: precoNum(x.d.price) }; });
+    previa = { t: tipo, c: d.codeFipe, a: anoCodigo, k: tipo + "|" + d.codeFipe + "|" + anoCodigo, hist: hist, info: { model: d.model, brand: d.brand, year: d.modelYear, fuel: d.fuel } };
+    var linhas = res.map(function (x, i) {
+      var atual = precoNum(x.d.price), ant = res[i + 1] ? precoNum(res[i + 1].d.price) : null, v = "—", cls = "";
       if (ant != null) {
         var dif = atual - ant;
-        if (dif === 0) var_ = "Sem variação";
-        else {
-          cls = dif > 0 ? "up" : "down";
-          var_ = (dif > 0 ? "▲ +" : "▼ −") + brl.format(Math.abs(dif)) + " (" + (dif > 0 ? "+" : "−") + pct.format(Math.abs(dif / ant * 100)) + "%)";
-        }
+        if (dif === 0) v = "Sem variação";
+        else { cls = dif > 0 ? "up" : "down"; v = (dif > 0 ? "▲ +" : "▼ −") + brl.format(Math.abs(dif)) + " (" + (dif > 0 ? "+" : "−") + pct.format(Math.abs(dif / ant * 100)) + "%)"; }
       }
-      return "<tr><td>" + esc(cap(x.referenceMonth)) + '</td><td class="r num"><strong>' + esc(brl.format(atual)) + '</strong><span class="var ' + cls + '">' + esc(var_) + "</span></td></tr>";
+      return "<tr><td>" + esc(cap(x.d.referenceMonth)) + '</td><td class="r num"><strong>' + esc(brl.format(atual)) + '</strong><span class="var ' + cls + '">' + esc(v) + "</span></td></tr>";
     }).join("");
-    var valores = arr.slice().reverse().map(function (x) { return precoNum(x.price); });
-    var hash = "#" + tipo + "/" + d.codeFipe + "/" + anoCodigo;
-    var anoTxt = d.modelYear === 32000 ? "0 km" : d.modelYear;
+    var vals = res.slice().reverse().map(function (x) { return precoNum(x.d.price); });
+    var labs = res.slice().reverse().map(function (x) { return mesCurto(x.d.referenceMonth); });
+    var ano = d.modelYear === 32000 ? "0 km" : d.modelYear;
     $("resultado").innerHTML =
-      '<article class="card">' +
-      '<div class="top"><div><h2>' + esc(d.model) + '</h2><p class="meta">' + esc(TIPO_ROTULO[tipo]) + " · " + esc(d.brand) + " · " + esc(anoTxt) + " · " + esc(d.fuel) + "</p></div>" +
-      '<span class="code">FIPE ' + esc(d.codeFipe) + "</span></div>" +
-      '<div class="price num">' + esc(brl.format(precoNum(d.price))) + "</div>" +
-      '<p class="ref">Tabela de ' + esc(d.referenceMonth) + "</p>" +
-      (valores.length > 1 ? spark(valores) : "") +
+      '<div class="prev"><div class="card-top"><div><h3>' + esc(d.model) + '</h3><p class="meta">' + esc(TIPO_ROTULO[tipo]) + " · " + esc(d.brand) + " · " + esc(ano) + " · " + esc(d.fuel) + '</p></div><span class="code">FIPE ' + esc(d.codeFipe) + "</span></div>" +
+      '<div class="price num">' + esc(brl.format(precoNum(d.price))) + '</div><div class="code">Tabela de ' + esc(d.referenceMonth) + "</div>" +
+      (vals.length > 1 ? spark(vals, labs) : "") +
       '<div class="tbl"><table><thead><tr><th>Mês</th><th class="r">Preço e variação</th></tr></thead><tbody>' + linhas + "</tbody></table></div>" +
-      '<div class="actions"><button class="ghost" id="copiar" type="button">Copiar link deste veículo</button><span class="copiado" id="copiado" role="status"></span></div>' +
-      "</article>";
-    try { history.replaceState(null, "", hash); } catch (e) { /* ignora */ }
-    $("copiar").addEventListener("click", function () {
-      var url = location.href;
-      function ok() { $("copiado").textContent = "Link copiado."; }
-      function falha() { $("copiado").textContent = "Copie o endereço da barra do navegador."; }
-      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(ok, falha); else falha();
+      '<div class="add-row"><label for="apelido">Apelido (opcional)<input type="text" id="apelido" maxlength="40" placeholder="Ex.: Carro da família"></label>' +
+      '<div class="add-btns"><button class="btn" type="button" data-add="meus">Adicionar a Meus veículos</button><button class="btn ghost" type="button" data-add="quero">Adicionar a Veículos para acompanhamento</button></div></div>' +
+      '<div class="add-btns"><button class="btn small ghost" type="button" id="copiar-veiculo">Copiar link deste veículo</button><span class="copiado" id="copiado-veiculo" role="status"></span></div></div>';
+    $("copiar-veiculo").addEventListener("click", function () {
+      copiar(location.origin + location.pathname + "#v=" + ABREV[tipo] + "." + d.codeFipe + "." + anoCodigo, "copiado-veiculo");
     });
   }
 
-  /* ---------- Link direto: #cars/001004-9/2005-1 ---------- */
-  function abrirDoHash() {
-    var m = /^#(cars|motorcycles)\/(\d{6}-\d)\/(\d{4,5}-\d)$/.exec(location.hash);
-    if (!m) return false;
-    consultar(m[1], "/" + m[1] + "/" + m[2] + "/years/" + m[3], m[3]);
-    return true;
+  /* ---------- Valores ao passar o mouse ou tocar ---------- */
+  var dica = $("dica");
+  var ativo = null;
+  function limparAtivo() {
+    if (!ativo) return;
+    var els = ativo.svg.querySelectorAll(".on");
+    for (var i = 0; i < els.length; i++) els[i].classList.remove("on");
+    ativo = null;
   }
-  window.addEventListener("hashchange", abrirDoHash);
+  function esconderDica() { dica.hidden = true; limparAtivo(); }
+  function mostrarDica(ev) {
+    var svg = ev.target && ev.target.closest ? ev.target.closest("svg[data-xs]") : null;
+    if (!svg) { esconderDica(); return; }
+    var r = svg.getBoundingClientRect(), vbw = svg.viewBox.baseVal.width;
+    var vx = (ev.clientX - r.left) / r.width * vbw;
+    var xs = svg.getAttribute("data-xs").split("|").map(Number);
+    var melhor = 0, dmin = Infinity;
+    xs.forEach(function (x, i) { var d = Math.abs(x - vx); if (d < dmin) { dmin = d; melhor = i; } });
+    if (ativo && ativo.svg !== svg) limparAtivo();
+    ativo = { svg: svg };
+    var els = svg.querySelectorAll("[data-i]");
+    for (var i = 0; i < els.length; i++) els[i].classList.toggle("on", +els[i].getAttribute("data-i") === melhor);
+    var html;
+    if (svg.hasAttribute("data-rows")) {
+      var linha = JSON.parse(svg.getAttribute("data-rows"))[melhor];
+      html = "<strong>" + esc(linha.m) + "</strong>" + linha.r.map(function (x, i) {
+        return '<div class="l"><span><span class="sw" style="background:' + x.c + '"></span>' + esc(x.n) + (i === 0 && linha.r.length > 1 ? '<span class="tag">maior</span>' : "") + '</span><span class="num"><strong style="display:inline;margin:0">' + esc(brl.format(x.p)) + "</strong></span></div>";
+      }).join("");
+    } else {
+      var vals = svg.getAttribute("data-vals").split("|").map(Number), labs = svg.getAttribute("data-labels").split("|");
+      var mx = Math.max.apply(null, vals), mn = Math.min.apply(null, vals);
+      var etiqueta = vals.length > 1 && vals[melhor] === mx ? "maior valor" : (vals.length > 1 && vals[melhor] === mn ? "menor valor" : "");
+      html = "<strong>" + esc(labs[melhor] || "") + '</strong><div class="num">' + esc(brl.format(vals[melhor])) + (etiqueta ? '<span class="tag">' + etiqueta + "</span>" : "") + "</div>";
+    }
+    dica.innerHTML = html;
+    dica.hidden = false;
+    var w = dica.offsetWidth, h = dica.offsetHeight, x = ev.clientX + 14, y = ev.clientY + 14;
+    if (x + w > window.innerWidth - 8) x = ev.clientX - w - 14;
+    if (y + h > window.innerHeight - 8) y = ev.clientY - h - 14;
+    dica.style.left = Math.max(8, x) + "px";
+    dica.style.top = Math.max(8, y) + "px";
+  }
+  document.addEventListener("pointermove", mostrarDica);
+  document.addEventListener("pointerdown", mostrarDica);
+  document.documentElement.addEventListener("pointerleave", esconderDica);
+  window.addEventListener("scroll", esconderDica, { passive: true });
 
+  /* ---------- Tema ---------- */
+  function aplicarTema(tema) {
+    document.documentElement.setAttribute("data-theme", tema);
+    $("tema").textContent = tema === "dark" ? "Usar tema claro" : "Usar tema escuro";
+  }
+  $("tema").addEventListener("click", function () {
+    var novo = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    try { window.localStorage.setItem("fipemonitor:tema", novo); } catch (e) { /* só vale nesta visita */ }
+    aplicarTema(novo);
+  });
+  aplicarTema(document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark");
+
+  var eraEstreito = window.innerWidth < 560;
+  window.addEventListener("resize", function () {
+    var agora = window.innerWidth < 560;
+    if (agora !== eraEstreito) { eraEstreito = agora; render(); }
+  });
+
+  /* ---------- Início ---------- */
+  carregarEstado();
+  if (!persistir) { /* aviso aparece no render */ }
+  render();
   carregarMarcas();
-  abrirDoHash();
+  var vazioAgora = !estado.meus.length && !estado.quero.length;
+  if (vazioAgora) $("busca").open = true;
+
+  var p = parametros();
+  var m = lerLista(p.m), q = lerLista(p.q);
+  if (m.length || q.length) mostrarImportar(m.slice(0, LIMITE.meus), q.slice(0, LIMITE.quero));
+  if (p.v) {
+    var vi = lerItem(p.v);
+    if (vi) { $("busca").open = true; consultar(vi.t, "/" + vi.t + "/" + vi.c + "/years/" + vi.a, vi.a); }
+  }
+  atualizarTudo().then(function () {
+    if (!tabelaAtual) topRefs().then(function (r) { if (r[0]) { tabelaAtual = r[0].month; render(); } }, function (e) { if (e && e.kind === "limite") limiteAtingido = true; render(); });
+  });
 })();
 </script>
 </body>
