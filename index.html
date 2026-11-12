@@ -1,11 +1,15 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
-<title>Monitor FIPE</title>
-<meta name="claude:viewport-fit-sides" content="cover">
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Consulta FIPE</title>
+<meta name="description" content="Consulte o preço da Tabela FIPE de carros e motos por modelo ou por código FIPE, com os últimos 3 meses.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: cabeçalho com status da coleta, três grupos de motos em grade de cartões, e a MT-03 com tabela comparativa e gráfico de linhas. */
+/* Layout: uma coluna central. Painel de busca com duas abas (modelo, código), cartão de resultado abaixo com preço, 3 meses e link para compartilhar. */
 :root {
   --bg: #F2F4F8;
   --surface: #FFFFFF;
@@ -13,309 +17,431 @@
   --muted: #5A6578;
   --line: #DCE1EA;
   --accent: #2447D6;
+  --on-accent: #FFFFFF;
   --accent-soft: #E6EBFB;
-  --good: #14804A;
-  --bad: #C3372E;
-  --warn-bg: #FFF3D6;
-  --warn-fg: #7A5200;
-  --s1: #2447D6;
-  --s2: #0E8F83;
-  --s3: #D4700C;
-  --s4: #B02E86;
+  --up: #B45309;
+  --down: #0E7C72;
+  --err-bg: #FDECEA;
+  --err-fg: #9B2C22;
   --font-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
   --font-body: "Inter", "Segoe UI", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0D121A; --surface: #151C27; --fg: #E8ECF4; --muted: #9AA6BA; --line: #263143;
-    --accent: #86A2FF; --accent-soft: #1C2742; --good: #4CC585; --bad: #FF7F77;
-    --warn-bg: #3A2D0E; --warn-fg: #F2CD7C;
-    --s1: #86A2FF; --s2: #3FCFC0; --s3: #F2A04D; --s4: #E27DC0;
+    --accent: #86A2FF; --on-accent: #0D121A; --accent-soft: #1C2742;
+    --up: #F2A04D; --down: #3FCFC0; --err-bg: #3A1A18; --err-fg: #FFB4AC;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0D121A; --surface: #151C27; --fg: #E8ECF4; --muted: #9AA6BA; --line: #263143;
-  --accent: #86A2FF; --accent-soft: #1C2742; --good: #4CC585; --bad: #FF7F77;
-  --warn-bg: #3A2D0E; --warn-fg: #F2CD7C;
-  --s1: #86A2FF; --s2: #3FCFC0; --s3: #F2A04D; --s4: #E27DC0;
+  --accent: #86A2FF; --on-accent: #0D121A; --accent-soft: #1C2742;
+  --up: #F2A04D; --down: #3FCFC0; --err-bg: #3A1A18; --err-fg: #FFB4AC;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
 body {
-  background: var(--bg); color: var(--fg);
+  margin: 0; background: var(--bg); color: var(--fg);
   font-family: var(--font-body); font-size: 15px; line-height: 1.5;
-  padding-block: 28px 56px;
+  padding-block: max(28px, env(safe-area-inset-top, 0px)) max(56px, env(safe-area-inset-bottom, 0px));
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
-.wrap { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 36px; }
-h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
-.num { font-variant-numeric: tabular-nums; }
-
-header { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: flex-end; justify-content: space-between; }
+.wrap { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+h1, h2 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
 h1 { font-size: 34px; letter-spacing: -0.02em; line-height: 1.1; }
-.sub { color: var(--muted); margin: 6px 0 0; }
-.status { display: flex; flex-direction: column; gap: 2px; align-items: flex-end; font-size: 13px; color: var(--muted); text-align: right; }
-.status strong { color: var(--fg); font-weight: 600; }
-.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: 12px; letter-spacing: 0.02em; }
-.chip i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.sub { color: var(--muted); margin: 8px 0 0; max-width: 60ch; }
+.num { font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.banner { padding: 12px 16px; border-radius: 8px; background: var(--warn-bg); color: var(--warn-fg); font-size: 14px; }
-.state { padding: 28px 16px; border: 1px dashed var(--line); border-radius: 10px; color: var(--muted); text-align: center; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.tabs { display: flex; gap: 4px; padding: 4px; background: var(--bg); border-radius: 9px; }
+.tab { flex: 1; font: inherit; font-weight: 600; font-size: 14px; padding: 9px 10px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
+.tab[aria-selected="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
 
-section { display: flex; flex-direction: column; gap: 14px; }
-.sec-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
-h2 { font-size: 20px; letter-spacing: -0.01em; }
-.sec-note { color: var(--muted); font-size: 13px; margin: 0; }
-
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 14px; }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-.card h3 { font-size: 15px; font-weight: 600; }
-.code { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
-.price { font-family: var(--font-display); font-size: 32px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; }
-.delta { font-size: 13px; font-weight: 500; color: var(--muted); }
-.delta.good { color: var(--good); }
-.delta.bad { color: var(--bad); }
-.delta small { color: var(--muted); font-weight: 400; }
-.spark { width: 100%; height: 44px; display: block; }
-.spark path { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-.spark circle { fill: var(--accent); }
-.spark .area { fill: var(--accent-soft); stroke: none; }
-.foot { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
-
-.tbl-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
-table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: 14px; }
-th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
-tr:last-child td { border-bottom: 0; }
-td.r, th.r { text-align: right; }
-.bar { display: block; height: 6px; border-radius: 3px; background: var(--accent); min-width: 4px; }
-.barcell { width: 26%; }
-.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 8px; vertical-align: -1px; }
-
-.chart-card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
-.chart-card svg { width: 100%; height: auto; display: block; }
-.ax { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
-.gl { stroke: var(--line); stroke-width: 1; }
-.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 10px; padding: 0; list-style: none; font-size: 13px; }
-.how { font-size: 13px; color: var(--muted); max-width: 70ch; }
-.how p { margin: 0 0 6px; }
-@media (max-width: 520px) {
-  h1 { font-size: 28px; }
-  .status { align-items: flex-start; text-align: left; }
+form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.full { grid-column: 1 / -1; }
+label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); min-width: 0; }
+select, input[type="text"], input[type="search"] {
+  font: inherit; font-size: 16px; letter-spacing: 0; text-transform: none; font-weight: 400;
+  width: 100%; min-width: 0; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--fg);
 }
-</style>
+select:disabled, input:disabled { opacity: .55; cursor: not-allowed; }
+.row { display: flex; gap: 10px; align-items: flex-end; }
+.row label { flex: 1; }
+button.primary { font: inherit; font-weight: 600; font-size: 15px; padding: 11px 18px; border-radius: 8px; border: 0; background: var(--accent); color: var(--on-accent); cursor: pointer; white-space: nowrap; }
+button.primary:disabled { opacity: .55; cursor: not-allowed; }
+button.ghost { font: inherit; font-weight: 500; font-size: 14px; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--fg); cursor: pointer; }
+.hint { margin: 0; font-size: 13px; color: var(--muted); }
 
-<div class="wrap">
+#status { min-height: 1.4em; font-size: 14px; color: var(--muted); margin: 0; }
+#status.erro { color: var(--err-fg); background: var(--err-bg); padding: 10px 12px; border-radius: 8px; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; align-items: flex-start; }
+.card h2 { font-size: 20px; line-height: 1.25; overflow-wrap: anywhere; }
+.meta { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+.code { font-family: var(--font-mono); font-size: 12px; color: var(--muted); background: var(--bg); padding: 3px 8px; border-radius: 6px; white-space: nowrap; }
+.price { font-family: var(--font-display); font-size: 44px; font-weight: 600; letter-spacing: -0.03em; line-height: 1.05; }
+.ref { margin: 0; color: var(--muted); font-size: 13px; }
+.spark { width: 100%; height: 48px; display: block; }
+.spark path { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.spark .area { fill: var(--accent-soft); stroke: none; }
+.spark circle { fill: var(--accent); }
+.tbl { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 9px 4px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+.r { text-align: right; }
+.var { display: block; font-size: 12.5px; color: var(--muted); }
+.var.up { color: var(--up); }
+.var.down { color: var(--down); }
+.up { color: var(--up); }
+.down { color: var(--down); }
+.actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.copiado { font-size: 13px; color: var(--muted); }
+
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; font-size: 14px; }
+summary { cursor: pointer; font-weight: 600; }
+details p { margin: 8px 0 0; color: var(--muted); max-width: 62ch; }
+footer { font-size: 12.5px; color: var(--muted); max-width: 70ch; }
+footer p { margin: 0 0 6px; }
+
+@media (max-width: 560px) {
+  h1 { font-size: 28px; }
+  form { grid-template-columns: 1fr; }
+  .price { font-size: 38px; }
+  .row { flex-direction: column; align-items: stretch; }
+  .card { padding: 16px; }
+}
+@media (prefers-reduced-motion: no-preference) { button { transition: opacity .15s; } }
+</style>
+</head>
+<body>
+<main class="wrap">
   <header>
-    <div>
-      <h1>Monitor FIPE</h1>
-      <p class="sub">Motos da casa e a MT-03 que você quer comprar</p>
-    </div>
-    <div class="status" id="status" aria-live="polite">
-      <span class="chip"><i></i>Coleta mensal, dia 10</span>
-      <span id="status-text">Carregando…</span>
-    </div>
+    <h1>Consulta FIPE</h1>
+    <p class="sub">Preço da Tabela FIPE de carros e motos, com os últimos 3 meses. Escolha o modelo ou digite o código FIPE.</p>
   </header>
 
-  <div id="alert"></div>
-  <div id="content"><div class="state">Carregando preços salvos…</div></div>
+  <section class="panel" aria-label="Busca">
+    <div class="tabs" role="tablist" aria-label="Forma de busca">
+      <button class="tab" role="tab" id="tab-modelo" aria-selected="true" aria-controls="painel-modelo" type="button">Por modelo</button>
+      <button class="tab" role="tab" id="tab-codigo" aria-selected="false" aria-controls="painel-codigo" type="button" tabindex="-1">Por código FIPE</button>
+    </div>
 
-  <div class="how">
-    <p>A FIPE publica uma tabela nova por mês, geralmente nos primeiros dias. Dentro do mês o valor não muda, então a coleta roda uma vez por mês, no dia 10, e guarda o histórico.</p>
-    <p>Setas verdes e vermelhas mostram o que é bom para você. Nas suas motos, subir é bom. Na MT-03 que você quer comprar, cair é bom.</p>
-  </div>
-</div>
+    <form id="painel-modelo" role="tabpanel" aria-labelledby="tab-modelo" autocomplete="off">
+      <label for="tipo">Tipo
+        <select id="tipo"><option value="cars">Carros</option><option value="motorcycles">Motos</option></select>
+      </label>
+      <label for="marca">Marca
+        <select id="marca" disabled><option>Carregando…</option></select>
+      </label>
+      <label for="filtro" class="full">Modelo
+        <input type="search" id="filtro" placeholder="Filtrar: civic, mt-03, gol 1.0" disabled>
+      </label>
+      <label for="modelo" class="full">
+        <span class="sr" style="position:absolute;left:-9999px">Lista de modelos</span>
+        <select id="modelo" disabled><option>Escolha a marca primeiro</option></select>
+      </label>
+      <label for="ano" class="full">Ano e combustível
+        <select id="ano" disabled><option>Escolha o modelo primeiro</option></select>
+      </label>
+    </form>
 
-<script id="dados" type="application/json">{"tabelaAtual":"2026-11","atualizadoEm":"2026-11-12T11:34:39+00:00","series":[{"historico":{"2026-11":13229.0,"2026-10":13015.0,"2026-09":12801.0},"id":"fazer150-2018","nome":"Fazer 150 2018","dono":"meu","codigoFipe":"827088-0","ano":"2018-1","modelo":"YS 150 FAZER SED/ FLEX","combustivel":"Gasolina","ordem":1},{"historico":{"2026-11":24068.0,"2026-10":24057.0,"2026-09":24536.0},"id":"fz25-2026","nome":"FZ25 Fazer Connected 2026","dono":"namorada","codigoFipe":"827130-5","ano":"2026-1","modelo":"FZ25 250 FAZER CONNECTED","combustivel":"Gasolina","ordem":2},{"historico":{"2026-11":29223.0,"2026-10":29112.0,"2026-09":29259.0},"id":"mt03-2024","nome":"MT-03 321 ABS 2024","dono":"desejo","codigoFipe":"827103-8","ano":"2024-1","modelo":"MT-03 321/ABS","combustivel":"Gasolina","ordem":3},{"historico":{"2026-11":30900.0,"2026-10":30230.0,"2026-09":30382.0},"id":"mt03-2025","nome":"MT-03 321 ABS 2025","dono":"desejo","codigoFipe":"827103-8","ano":"2025-1","modelo":"MT-03 321/ABS","combustivel":"Gasolina","ordem":4},{"historico":{"2026-11":32806.0,"2026-10":32491.0,"2026-09":32760.0},"id":"mt03c-2026","nome":"MT-03 Connected 2026","dono":"desejo","codigoFipe":"827140-2","ano":"2026-1","modelo":"MT-03 CONNECTED 321cc ABS","combustivel":"Gasolina","ordem":5},{"historico":{"2026-11":33714.0,"2026-10":33573.0,"2026-09":33817.0},"id":"mt03c-2027","nome":"MT-03 Connected 2027","dono":"desejo","codigoFipe":"827140-2","ano":"2027-1","modelo":"MT-03 CONNECTED 321cc ABS","combustivel":"Gasolina","ordem":6}]}</script>
+    <form id="painel-codigo" role="tabpanel" aria-labelledby="tab-codigo" autocomplete="off" hidden>
+      <div class="row full">
+        <label for="codigo">Código FIPE
+          <input type="text" id="codigo" inputmode="numeric" placeholder="000000-0" maxlength="9">
+        </label>
+        <button class="primary" id="btn-codigo" type="submit">Buscar</button>
+      </div>
+      <label for="ano-codigo" class="full">Ano e combustível
+        <select id="ano-codigo" disabled><option>Busque o código primeiro</option></select>
+      </label>
+      <p class="hint full">O código fica no formato 000000-0 e aparece em qualquer consulta da FIPE, inclusive nesta página.</p>
+    </form>
+
+    <p id="status" role="status" aria-live="polite"></p>
+  </section>
+
+  <section id="resultado" aria-live="polite"></section>
+
+  <details>
+    <summary>Só tenho a placa. E agora?</summary>
+    <p>A Tabela FIPE não tem busca por placa. A placa só serve para descobrir marca, modelo e ano, que estão no documento do veículo. Com esses dados, use a busca por modelo.</p>
+  </details>
+
+  <footer>
+    <p>Valores da Tabela FIPE, obtidos pela API pública fipe.parallelum.com.br. A FIPE publica uma tabela por mês, e a consulta gratuita mostra o mês atual e os dois anteriores.</p>
+    <p>Os valores são uma referência de mercado. Não substituem avaliação, laudo ou proposta de compra.</p>
+  </footer>
+</main>
+
 <script>
 (function () {
-  var MESES = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
-  var GROUPS = [
-    { dono: "meu", titulo: "Minha moto", nota: "" },
-    { dono: "namorada", titulo: "Moto da Larissa", nota: "" },
-    { dono: "desejo", titulo: "Quero comprar: Yamaha MT-03", nota: "" }
-  ];
-  var SERIES_COLORS = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)"];
-  var brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+  "use strict";
+  var API = "https://fipe.parallelum.com.br/api/v2";
+  var TIPO_ROTULO = { cars: "Carro", motorcycles: "Moto" };
+  var brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 2 });
   var pct = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  var mem = {};
+  var token = 0;
+  var models = [];
+  var codigoCtx = null;
 
-  var state = { series: null, meta: null, loaded: false, failed: false };
-
+  function $(id) { return document.getElementById(id); }
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
   }
-  function mesLabel(k) { var p = k.split("-"); return MESES[+p[1] - 1] + "/" + p[0].slice(2); }
-  function mesLongo(k) { var p = k.split("-"); return MESES[+p[1] - 1] + "/" + p[0]; }
-  function anoNum(s) { return parseInt(String(s.ano || "0"), 10) || 0; }
+  function norm(s) { return String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, ""); }
+  function rotuloAno(n) { return String(n).replace(/^32000/, "0 km"); }
+  function precoNum(t) { return parseFloat(String(t).replace(/[^\d,]/g, "").replace(",", ".")); }
+  function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
 
-  function stats(s) {
-    var h = s.historico || {};
-    var keys = Object.keys(h).sort();
-    var last = keys[keys.length - 1], prev = keys[keys.length - 2];
-    return { keys: keys, last: last, prev: prev, price: h[last], prevPrice: prev ? h[prev] : null, h: h };
-  }
+  function guardado(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
+  function guardar(k, v) { try { sessionStorage.setItem(k, v); } catch (e) { /* sem cache */ } }
 
-  function deltaHtml(s, st) {
-    if (st.prevPrice == null) return '<div class="delta">Sem mês anterior para comparar</div>';
-    var d = st.price - st.prevPrice;
-    if (d === 0) return '<div class="delta">• Sem variação <small>desde ' + mesLabel(st.prev) + "</small></div>";
-    var up = d > 0;
-    var good = s.dono === "desejo" ? !up : up;
-    var p = (d / st.prevPrice) * 100;
-    var txt = (up ? "▲ +" : "▼ −") + brl.format(Math.abs(d)) + " (" + (up ? "+" : "−") + pct.format(Math.abs(p)) + "%)";
-    return '<div class="delta num ' + (good ? "good" : "bad") + '">' + txt + " <small>desde " + mesLabel(st.prev) + "</small></div>";
-  }
-
-  function sparkline(st) {
-    var W = 240, H = 44, pad = 5;
-    var vals = st.keys.map(function (k) { return st.h[k]; });
-    if (vals.length < 2) {
-      return '<svg class="spark" viewBox="0 0 ' + W + " " + H + '" aria-hidden="true"><circle cx="' + (W - pad) + '" cy="' + H / 2 + '" r="3.5"/></svg>';
+  function api(path, nocache) {
+    var key = "fipe:" + path;
+    if (mem[key]) return Promise.resolve(mem[key]);
+    if (!nocache) {
+      var s = guardado(key);
+      if (s) { try { var v = JSON.parse(s); mem[key] = v; return Promise.resolve(v); } catch (e) { /* ignora */ } }
     }
-    var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
-    var span = max - min || 1;
-    var pts = vals.map(function (v, i) {
-      return [pad + (i * (W - 2 * pad)) / (vals.length - 1), H - pad - ((v - min) / span) * (H - 2 * pad)];
+    return fetch(API + path).then(function (r) {
+      if (r.status === 429) throw { kind: "limite" };
+      if (!r.ok) throw { kind: "naoencontrado", status: r.status };
+      return r.json();
+    }, function () { throw { kind: "rede" }; }).then(function (v) {
+      mem[key] = v; guardar(key, JSON.stringify(v)); return v;
     });
-    var line = pts.map(function (p, i) { return (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1); }).join(" ");
-    var area = line + " L" + pts[pts.length - 1][0].toFixed(1) + " " + H + " L" + pts[0][0].toFixed(1) + " " + H + " Z";
+  }
+
+  function msgErro(e) {
+    if (e && e.kind === "limite") return "A FIPE limitou as consultas gratuitas de hoje para a sua rede. Tente de novo mais tarde.";
+    if (e && e.kind === "rede") return "Não consegui falar com a FIPE agora. Verifique a conexão e tente de novo.";
+    return "Não encontrei esse veículo na Tabela FIPE. Confira os dados e tente de novo.";
+  }
+  function status(texto, erro) {
+    var el = $("status");
+    el.textContent = texto || "";
+    el.className = erro ? "erro" : "";
+  }
+
+  function preencher(sel, placeholder, itens, rotulo) {
+    sel.innerHTML = "";
+    var p = document.createElement("option");
+    p.value = ""; p.textContent = placeholder; sel.appendChild(p);
+    itens.forEach(function (it) {
+      var o = document.createElement("option");
+      o.value = it.code; o.textContent = rotulo ? rotulo(it) : it.name; sel.appendChild(o);
+    });
+    sel.disabled = false;
+    sel.value = "";
+  }
+  function desligar(sel, texto) {
+    sel.innerHTML = "";
+    var o = document.createElement("option"); o.textContent = texto; sel.appendChild(o);
+    sel.disabled = true;
+  }
+
+  /* ---------- Abas ---------- */
+  function aba(qual) {
+    var modelo = qual === "modelo";
+    $("tab-modelo").setAttribute("aria-selected", modelo);
+    $("tab-codigo").setAttribute("aria-selected", !modelo);
+    $("tab-modelo").tabIndex = modelo ? 0 : -1;
+    $("tab-codigo").tabIndex = modelo ? -1 : 0;
+    $("painel-modelo").hidden = !modelo;
+    $("painel-codigo").hidden = modelo;
+    status("");
+  }
+  $("tab-modelo").addEventListener("click", function () { aba("modelo"); });
+  $("tab-codigo").addEventListener("click", function () { aba("codigo"); });
+
+  /* ---------- Busca por modelo ---------- */
+  function carregarMarcas() {
+    var tipo = $("tipo").value;
+    desligar($("marca"), "Carregando…");
+    desligar($("modelo"), "Escolha a marca primeiro");
+    desligar($("ano"), "Escolha o modelo primeiro");
+    $("filtro").value = ""; $("filtro").disabled = true;
+    status("");
+    api("/" + tipo + "/brands").then(function (marcas) {
+      if ($("tipo").value !== tipo) return;
+      preencher($("marca"), "Escolha a marca (" + marcas.length + ")", marcas);
+    }).catch(function (e) { status(msgErro(e), true); desligar($("marca"), "Não carregou"); });
+  }
+  function desenharModelos() {
+    var termos = $("filtro").value.split(/\s+/).map(norm).filter(Boolean);
+    var lista = models.filter(function (m) {
+      var n = norm(m.name);
+      return termos.every(function (t) { return n.indexOf(t) !== -1; });
+    });
+    preencher($("modelo"), lista.length + (lista.length === 1 ? " modelo encontrado" : " modelos encontrados"), lista);
+    desligar($("ano"), "Escolha o modelo primeiro");
+  }
+  $("tipo").addEventListener("change", carregarMarcas);
+  $("marca").addEventListener("change", function () {
+    var tipo = $("tipo").value, marca = $("marca").value;
+    $("filtro").value = ""; $("filtro").disabled = true;
+    desligar($("modelo"), "Carregando modelos…");
+    desligar($("ano"), "Escolha o modelo primeiro");
+    if (!marca) { desligar($("modelo"), "Escolha a marca primeiro"); return; }
+    status("");
+    api("/" + tipo + "/brands/" + encodeURIComponent(marca) + "/models").then(function (m) {
+      if ($("marca").value !== marca) return;
+      models = m; $("filtro").disabled = false; desenharModelos();
+    }).catch(function (e) { status(msgErro(e), true); desligar($("modelo"), "Não carregou"); });
+  });
+  $("filtro").addEventListener("input", desenharModelos);
+  $("modelo").addEventListener("change", function () {
+    var tipo = $("tipo").value, marca = $("marca").value, modelo = $("modelo").value;
+    desligar($("ano"), "Carregando anos…");
+    if (!modelo) { desligar($("ano"), "Escolha o modelo primeiro"); return; }
+    status("");
+    api("/" + tipo + "/brands/" + encodeURIComponent(marca) + "/models/" + encodeURIComponent(modelo) + "/years").then(function (anos) {
+      if ($("modelo").value !== modelo) return;
+      preencher($("ano"), "Escolha o ano", anos, function (a) { return rotuloAno(a.name); });
+    }).catch(function (e) { status(msgErro(e), true); desligar($("ano"), "Não carregou"); });
+  });
+  $("ano").addEventListener("change", function () {
+    var ano = $("ano").value;
+    if (!ano) return;
+    var tipo = $("tipo").value;
+    consultar(tipo, "/" + tipo + "/brands/" + encodeURIComponent($("marca").value) + "/models/" + encodeURIComponent($("modelo").value) + "/years/" + encodeURIComponent(ano), ano);
+  });
+
+  /* ---------- Busca por código ---------- */
+  $("painel-codigo").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var v = $("codigo").value.replace(/\s+/g, "");
+    if (/^\d{7}$/.test(v)) v = v.slice(0, 6) + "-" + v.slice(6);
+    if (!/^\d{6}-\d$/.test(v)) { status("Digite o código FIPE no formato 000000-0.", true); return; }
+    $("codigo").value = v;
+    buscarCodigo(v);
+  });
+  function buscarCodigo(codigo, depois) {
+    status("Buscando o código " + codigo + "…");
+    $("btn-codigo").disabled = true;
+    desligar($("ano-codigo"), "Buscando…");
+    var tipos = ["motorcycles", "cars"];
+    Promise.all(tipos.map(function (t) {
+      return api("/" + t + "/" + codigo + "/years").then(function (anos) { return { t: t, anos: anos }; }, function (e) { return { t: t, erro: e }; });
+    })).then(function (res) {
+      $("btn-codigo").disabled = false;
+      var ok = res.filter(function (r) { return r.anos; })[0];
+      if (!ok) {
+        var raro = res.filter(function (r) { return r.erro && r.erro.kind !== "naoencontrado"; })[0];
+        desligar($("ano-codigo"), "Busque o código primeiro");
+        status(raro ? msgErro(raro.erro) : "Não encontrei o código " + codigo + " em carros nem em motos.", true);
+        return;
+      }
+      codigoCtx = { tipo: ok.t, codigo: codigo };
+      preencher($("ano-codigo"), "Escolha o ano (" + (ok.t === "cars" ? "carro" : "moto") + ")", ok.anos, function (a) { return rotuloAno(a.name); });
+      status("");
+      if (depois) { $("ano-codigo").value = depois; }
+      else if (ok.anos.length === 1) { $("ano-codigo").value = ok.anos[0].code; $("ano-codigo").dispatchEvent(new Event("change")); }
+    });
+  }
+  $("ano-codigo").addEventListener("change", function () {
+    var ano = $("ano-codigo").value;
+    if (!ano || !codigoCtx) return;
+    consultar(codigoCtx.tipo, "/" + codigoCtx.tipo + "/" + codigoCtx.codigo + "/years/" + encodeURIComponent(ano), ano);
+  });
+
+  /* ---------- Consulta e resultado ---------- */
+  function consultar(tipo, base, anoCodigo) {
+    var tk = ++token;
+    status("Consultando a FIPE…");
+    api("/references").catch(function () { return null; }).then(function (refs) {
+      var lista = (refs || []).slice(0, 3);
+      if (!lista.length) return api(base, true).then(function (d) { return [d]; });
+      return Promise.all(lista.map(function (rf, i) {
+        return api(base + "?reference=" + rf.code).then(function (d) { return d; }, function (e) { if (i === 0) throw e; return null; });
+      })).then(function (arr) { return arr.filter(Boolean); });
+    }).then(function (arr) {
+      if (tk !== token) return;
+      desenhar(tipo, arr, anoCodigo);
+      status("");
+    }).catch(function (e) {
+      if (tk !== token) return;
+      $("resultado").innerHTML = "";
+      status(msgErro(e), true);
+    });
+  }
+
+  function spark(valores) {
+    var W = 280, H = 48, pad = 5;
+    var min = Math.min.apply(null, valores), max = Math.max.apply(null, valores), span = max - min || 1;
+    var pts = valores.map(function (v, i) {
+      return [valores.length === 1 ? W - pad : pad + i * (W - 2 * pad) / (valores.length - 1), H - pad - ((v - min) / span) * (H - 2 * pad)];
+    });
     var e = pts[pts.length - 1];
-    return '<svg class="spark" viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" aria-hidden="true"><path class="area" d="' + area + '"/><path d="' + line + '" vector-effect="non-scaling-stroke"/><circle cx="' + e[0].toFixed(1) + '" cy="' + e[1].toFixed(1) + '" r="3.5"/></svg>';
+    if (pts.length < 2) return '<svg class="spark" viewBox="0 0 ' + W + " " + H + '" aria-hidden="true"><circle cx="' + e[0] + '" cy="' + e[1] + '" r="4"/></svg>';
+    var linha = pts.map(function (p, i) { return (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1); }).join(" ");
+    var area = linha + " L" + e[0].toFixed(1) + " " + H + " L" + pts[0][0].toFixed(1) + " " + H + " Z";
+    return '<svg class="spark" viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" aria-hidden="true"><path class="area" d="' + area + '"/><path d="' + linha + '" vector-effect="non-scaling-stroke"/><circle cx="' + e[0].toFixed(1) + '" cy="' + e[1].toFixed(1) + '" r="4"/></svg>';
   }
 
-  function card(s) {
-    var st = stats(s);
-    if (st.price == null) return "";
-    return '<article class="card">' +
-      "<div><h3>" + esc(s.nome) + '</h3><div class="code">FIPE ' + esc(s.codigoFipe) + "</div></div>" +
-      '<div class="price num">' + brl.format(st.price) + "</div>" +
-      deltaHtml(s, st) + sparkline(st) +
-      '<div class="foot"><span>' + esc(s.combustivel || "") + "</span><span>" + st.keys.length + (st.keys.length === 1 ? " mês registrado" : " meses registrados") + "</span></div>" +
-      "</article>";
-  }
-
-  function lineChart(list) {
-    var months = {};
-    list.forEach(function (s) { Object.keys(s.historico || {}).forEach(function (k) { months[k] = 1; }); });
-    months = Object.keys(months).sort();
-    if (!months.length) return "";
-    var all = [];
-    list.forEach(function (s) { months.forEach(function (k) { if (s.historico && s.historico[k] != null) all.push(s.historico[k]); }); });
-    var lo = Math.min.apply(null, all), hi = Math.max.apply(null, all);
-    var step = Math.max(250, Math.ceil((hi - lo + 600) / 4 / 250) * 250);
-    var yMin = Math.floor((lo - 300) / 250) * 250;
-    var yMax = yMin + step * 4;
-    var W = 680, H = 280, L = 62, R = 18, T = 14, B = 30;
-    function X(i) { return months.length === 1 ? (L + W - R) / 2 : L + (i * (W - L - R)) / (months.length - 1); }
-    function Y(v) { return T + (1 - (v - yMin) / (yMax - yMin)) * (H - T - B); }
-    var g = "";
-    for (var t = 0; t <= 4; t++) {
-      var v = yMin + t * step, y = Y(v);
-      g += '<line class="gl" x1="' + L + '" x2="' + (W - R) + '" y1="' + y.toFixed(1) + '" y2="' + y.toFixed(1) + '"/><text class="ax" x="' + (L - 8) + '" y="' + (y + 4).toFixed(1) + '" text-anchor="end">' + esc(brl.format(v)) + "</text>";
-    }
-    months.forEach(function (k, i) {
-      g += '<text class="ax" x="' + X(i).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle">' + esc(mesLabel(k)) + "</text>";
-    });
-    list.forEach(function (s, si) {
-      var col = SERIES_COLORS[si % SERIES_COLORS.length];
-      var pts = [];
-      months.forEach(function (k, i) { if (s.historico && s.historico[k] != null) pts.push([X(i), Y(s.historico[k]), k, s.historico[k]]); });
-      if (pts.length > 1) g += '<path d="' + pts.map(function (p, i) { return (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1); }).join(" ") + '" fill="none" stroke="' + col + '" stroke-width="2.25" stroke-linejoin="round" stroke-linecap="round"/>';
-      pts.forEach(function (p, i) {
-        var last = i === pts.length - 1;
-        g += '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="' + (last ? 4.5 : 3) + '" fill="' + col + '"><title>' + esc(s.nome) + " · " + esc(mesLongo(p[2])) + " · " + esc(brl.format(p[3])) + "</title></circle>";
-      });
-    });
-    var legend = list.map(function (s, si) {
-      return '<li><span class="sw" style="background:' + SERIES_COLORS[si % SERIES_COLORS.length] + '"></span>' + esc(s.nome) + "</li>";
+  function desenhar(tipo, arr, anoCodigo) {
+    var d = arr[0];
+    var linhas = arr.map(function (x, i) {
+      var atual = precoNum(x.price), ant = arr[i + 1] ? precoNum(arr[i + 1].price) : null, var_ = "—", cls = "";
+      if (ant != null) {
+        var dif = atual - ant;
+        if (dif === 0) var_ = "Sem variação";
+        else {
+          cls = dif > 0 ? "up" : "down";
+          var_ = (dif > 0 ? "▲ +" : "▼ −") + brl.format(Math.abs(dif)) + " (" + (dif > 0 ? "+" : "−") + pct.format(Math.abs(dif / ant * 100)) + "%)";
+        }
+      }
+      return "<tr><td>" + esc(cap(x.referenceMonth)) + '</td><td class="r num"><strong>' + esc(brl.format(atual)) + '</strong><span class="var ' + cls + '">' + esc(var_) + "</span></td></tr>";
     }).join("");
-    return '<div class="chart-card"><ul class="legend">' + legend + '</ul><svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Preço FIPE mensal de cada versão e ano da MT-03">' + g + "</svg></div>";
-  }
-
-  function mtTable(list) {
-    var rows = list.slice().sort(function (a, b) { return anoNum(a) - anoNum(b); });
-    var max = Math.max.apply(null, rows.map(function (s) { return stats(s).price || 0; }));
-    var html = '<div class="tbl-wrap"><table><thead><tr><th>Versão e ano</th><th class="r">Preço FIPE</th><th class="r">Vs. mês anterior</th><th class="r">Vs. ano anterior</th><th class="barcell"></th></tr></thead><tbody>';
-    var prevPrice = null;
-    rows.forEach(function (s, i) {
-      var st = stats(s);
-      if (st.price == null) return;
-      var m = "";
-      if (st.prevPrice != null) {
-        var d = st.price - st.prevPrice;
-        var good = d < 0;
-        m = d === 0 ? "—" : '<span class="delta num ' + (good ? "good" : "bad") + '">' + (d > 0 ? "▲ +" : "▼ −") + esc(brl.format(Math.abs(d))) + "</span>";
-      } else { m = "—"; }
-      var y = prevPrice == null ? "—" : (function () { var d = st.price - prevPrice; return (d >= 0 ? "+" : "−") + brl.format(Math.abs(d)); })();
-      html += "<tr><td>" + '<span class="sw" style="background:' + SERIES_COLORS[i % SERIES_COLORS.length] + '"></span>' + esc(s.nome) + ' <span class="code">' + esc(s.codigoFipe) + '</span></td><td class="r num"><strong>' + esc(brl.format(st.price)) + '</strong></td><td class="r num">' + m + '</td><td class="r num">' + esc(y) + '</td><td class="barcell"><span class="bar" style="width:' + Math.round((st.price / max) * 100) + '%"></span></td></tr>';
-      prevPrice = st.price;
+    var valores = arr.slice().reverse().map(function (x) { return precoNum(x.price); });
+    var hash = "#" + tipo + "/" + d.codeFipe + "/" + anoCodigo;
+    var anoTxt = d.modelYear === 32000 ? "0 km" : d.modelYear;
+    $("resultado").innerHTML =
+      '<article class="card">' +
+      '<div class="top"><div><h2>' + esc(d.model) + '</h2><p class="meta">' + esc(TIPO_ROTULO[tipo]) + " · " + esc(d.brand) + " · " + esc(anoTxt) + " · " + esc(d.fuel) + "</p></div>" +
+      '<span class="code">FIPE ' + esc(d.codeFipe) + "</span></div>" +
+      '<div class="price num">' + esc(brl.format(precoNum(d.price))) + "</div>" +
+      '<p class="ref">Tabela de ' + esc(d.referenceMonth) + "</p>" +
+      (valores.length > 1 ? spark(valores) : "") +
+      '<div class="tbl"><table><thead><tr><th>Mês</th><th class="r">Preço e variação</th></tr></thead><tbody>' + linhas + "</tbody></table></div>" +
+      '<div class="actions"><button class="ghost" id="copiar" type="button">Copiar link deste veículo</button><span class="copiado" id="copiado" role="status"></span></div>' +
+      "</article>";
+    try { history.replaceState(null, "", hash); } catch (e) { /* ignora */ }
+    $("copiar").addEventListener("click", function () {
+      var url = location.href;
+      function ok() { $("copiado").textContent = "Link copiado."; }
+      function falha() { $("copiado").textContent = "Copie o endereço da barra do navegador."; }
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(ok, falha); else falha();
     });
-    return html + "</tbody></table></div>";
   }
 
-  function render() {
-    var content = document.getElementById("content");
-    var statusText = document.getElementById("status-text");
-    var alertEl = document.getElementById("alert");
-    alertEl.innerHTML = "";
-
-    if (state.failed) {
-      content.innerHTML = '<div class="state">Não consegui acessar os dados salvos. Abra o artefato logado na sua conta para ver os preços.</div>';
-      statusText.textContent = "Sem acesso aos dados";
-      return;
-    }
-    if (!state.loaded) return;
-    if (!state.series || !state.series.length) {
-      content.innerHTML = '<div class="state">Ainda não há preços aqui. A primeira coleta diária preenche esta página.</div>';
-      statusText.textContent = "Aguardando a primeira coleta";
-      return;
-    }
-
-    var meta = state.meta || {};
-    if (meta.tabelaAtual) {
-      var when = meta.atualizadoEm ? new Date(meta.atualizadoEm) : null;
-      var whenTxt = when && !isNaN(when) ? when.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
-      statusText.innerHTML = "Tabela de <strong>" + esc(mesLongo(meta.tabelaAtual)) + "</strong>" + (whenTxt ? " · checado em " + esc(whenTxt) : "");
-      if (when && !isNaN(when) && Date.now() - when.getTime() > 40 * 86400000) {
-        alertEl.innerHTML = '<div class="banner">A última checagem foi em ' + esc(whenTxt) + ". A coleta roda no seu computador, então ele precisa estar ligado com o Claude aberto.</div>";
-      }
-    } else {
-      statusText.textContent = "Última checagem indisponível";
-    }
-
-    var html = "";
-    GROUPS.forEach(function (g) {
-      var list = state.series.filter(function (s) { return s.dono === g.dono; })
-        .sort(function (a, b) { return (a.ordem || 0) - (b.ordem || 0); });
-      if (!list.length) return;
-      var note = g.nota;
-      if (g.dono === "namorada" && list.length > 1) note = "A FIPE lista mais de um ano-modelo para este código.";
-      html += "<section><div class=\"sec-head\"><h2>" + esc(g.titulo) + "</h2>" + (note ? '<p class="sec-note">' + esc(note) + "</p>" : "") + "</div>";
-      if (g.dono === "desejo") {
-        html += mtTable(list) + lineChart(list);
-      } else {
-        html += '<div class="grid">' + list.map(card).join("") + "</div>";
-      }
-      html += "</section>";
-    });
-    content.innerHTML = html;
+  /* ---------- Link direto: #cars/001004-9/2005-1 ---------- */
+  function abrirDoHash() {
+    var m = /^#(cars|motorcycles)\/(\d{6}-\d)\/(\d{4,5}-\d)$/.exec(location.hash);
+    if (!m) return false;
+    consultar(m[1], "/" + m[1] + "/" + m[2] + "/years/" + m[3], m[3]);
+    return true;
   }
+  window.addEventListener("hashchange", abrirDoHash);
 
-  try {
-    var bruto = JSON.parse(document.getElementById("dados").textContent);
-    state.series = bruto.series || [];
-    state.meta = { tabelaAtual: bruto.tabelaAtual, atualizadoEm: bruto.atualizadoEm };
-  } catch (e) {
-    state.series = [];
-  }
-  state.loaded = true;
-  render();
+  carregarMarcas();
+  abrirDoHash();
 })();
 </script>
-
-</body></html>
+</body>
+</html>
