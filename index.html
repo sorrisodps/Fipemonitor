@@ -906,13 +906,20 @@ details.mini p { margin: 8px 0 0; color: var(--muted); max-width: 62ch; }
   var vazioAgora = !estado.meus.length && !estado.quero.length;
   if (vazioAgora) $("busca").open = true;
 
-  var p = parametros();
-  var m = lerLista(p.m), q = lerLista(p.q);
-  if (m.length || q.length) mostrarImportar(m.slice(0, LIMITE.meus), q.slice(0, LIMITE.quero));
-  if (p.v) {
-    var vi = lerItem(p.v);
-    if (vi) { $("busca").open = true; consultar(vi.t, "/" + vi.t + "/" + vi.c + "/years/" + vi.a, vi.a); }
+  function tratarHash() {
+    var p = parametros();
+    var m = lerLista(p.m), q = lerLista(p.q);
+    if (m.length || q.length) {
+      var antigo = $("aviso-importar"); if (antigo) antigo.remove();
+      mostrarImportar(m.slice(0, LIMITE.meus), q.slice(0, LIMITE.quero));
+    }
+    if (p.v) {
+      var vi = lerItem(p.v);
+      if (vi) { $("busca").open = true; consultar(vi.t, "/" + vi.t + "/" + vi.c + "/years/" + vi.a, vi.a); }
+    }
   }
+  window.addEventListener("hashchange", tratarHash);
+  tratarHash();
   atualizarTudo().then(function () {
     if (!tabelaAtual) topRefs().then(function (r) { if (r[0]) { tabelaAtual = r[0].month; render(); } }, function (e) { if (e && e.kind === "limite") limiteAtingido = true; render(); });
   });
